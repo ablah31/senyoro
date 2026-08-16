@@ -9,9 +9,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PeriodSelector } from "@/components/shared/period-selector";
 import { ListFilters } from "@/components/shared/list-filters";
+import { QuerySearch } from "@/components/shared/query-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export const metadata = { title: "Lavages" };
 
@@ -106,9 +106,7 @@ export default async function WashesPage({
       </PageHeader>
       <div className="mb-4 space-y-3">
         <PeriodSelector />
-        <form>
-          <Input name="q" defaultValue={q} placeholder="Plaque, client, téléphone" className="h-11" />
-        </form>
+        <QuerySearch placeholder="Plaque, client, téléphone" />
         <ListFilters
           vehicleTypes={vehicleTypes.map((item) => ({ id: item.id, name: item.name }))}
           services={services.map((item) => ({ id: item.id, name: item.name }))}

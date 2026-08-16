@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/lib/actions/auth";
@@ -24,6 +25,7 @@ export function AppShell({
   orgName: string;
 }) {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -72,7 +74,7 @@ export function AppShell({
 
       <div className="lg:pl-60">
         <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur lg:h-16 lg:px-6">
-          <Sheet>
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
               render={
                 <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu" />
@@ -89,6 +91,7 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMenuOpen(false)}
                       className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm"
                     >
                       <Icon className="size-4" />

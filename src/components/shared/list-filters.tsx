@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PAYMENT_LABELS, NATURE_LABELS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 
@@ -22,13 +22,26 @@ export function ListFilters({
   showNature?: boolean;
 }) {
   const params = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
 
   return (
-    <form className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      {["period", "from", "to", "q"].map((name) => {
-        const value = params.get(name);
-        return value ? <input key={name} type="hidden" name={name} value={value} /> : null;
-      })}
+    <form
+      className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const search = new URLSearchParams(params.toString());
+        for (const key of ["vehicleTypeId", "serviceId", "employeeId", "paymentMethod", "categoryId", "nature"]) {
+          const value = String(form.get(key) ?? "");
+          if (value) search.set(key, value);
+          else search.delete(key);
+        }
+        search.delete("page");
+        const query = search.toString();
+        router.push(query ? `${pathname}?${query}` : pathname);
+      }}
+    >
       {vehicleTypes ? (
         <select
           name="vehicleTypeId"

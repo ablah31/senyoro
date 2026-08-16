@@ -22,12 +22,22 @@ export const metadata: Metadata = {
     template: "%s · Senyoro",
   },
   description: "Pilotage quotidien du centre de lavage Senyoro",
+  applicationName: "Senyoro",
+  appleWebApp: {
+    capable: true,
+    title: "Senyoro",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
   themeColor: "#0b6e6a",
 };
 
