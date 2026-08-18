@@ -23,38 +23,44 @@ export function ExpenseForm({
       className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2"
       onSubmit={(e) => {
         e.preventDefault();
-        const form = new FormData(e.currentTarget);
+        if (pending) return;
+        const formEl = e.currentTarget;
+        const form = new FormData(formEl);
         startTransition(async () => {
-          const result = await createExpenseAction({
-            amount: Number(form.get("amount")),
-            date: String(form.get("date")),
-            categoryId,
-            nature: String(form.get("nature")),
-            description: String(form.get("description")),
-            supplier: String(form.get("supplier") || "") || null,
-            paymentMethod: String(form.get("paymentMethod")),
-          });
-          if (result.error || !result.id) {
-            toast.error(result.error ?? "Enregistrement impossible");
-            return;
-          }
-          const receipt = form.get("receipt");
-          if (receipt instanceof File && receipt.size > 0) {
-            try {
-              const uploaded = await uploadToBucket("expense-receipts", receipt);
-              const attached = await attachReceiptAction(
-                result.id,
-                uploaded.path,
-                receipt.name,
-                receipt.type,
-              );
-              if (attached.error) toast.error(attached.error);
-            } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Justificatif non importé");
+          try {
+            const result = await createExpenseAction({
+              amount: Number(form.get("amount")),
+              date: String(form.get("date")),
+              categoryId,
+              nature: String(form.get("nature")),
+              description: String(form.get("description")),
+              supplier: String(form.get("supplier") || "") || null,
+              paymentMethod: String(form.get("paymentMethod")),
+            });
+            if (result.error || !result.id) {
+              toast.error(result.error ?? "Enregistrement impossible");
+              return;
             }
+            const receipt = form.get("receipt");
+            if (receipt instanceof File && receipt.size > 0) {
+              try {
+                const uploaded = await uploadToBucket("expense-receipts", receipt);
+                const attached = await attachReceiptAction(
+                  result.id,
+                  uploaded.path,
+                  receipt.name,
+                  receipt.type,
+                );
+                if (attached.error) toast.error(attached.error);
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Justificatif non importé");
+              }
+            }
+            toast.success("Dépense enregistrée");
+            formEl.reset();
+          } catch {
+            toast.error("Enregistrement impossible. Réessayez.");
           }
-          toast.success("Dépense enregistrée");
-          e.currentTarget.reset();
         });
       }}
     >
@@ -120,7 +126,7 @@ export function ExpenseForm({
       </div>
       <div className="md:col-span-2">
         <Button className="h-11 w-full" disabled={pending}>
-          Enregistrer la dépense
+          {pending ? "Enregistrement…" : "Enregistrer la dépense"}
         </Button>
       </div>
     </form>

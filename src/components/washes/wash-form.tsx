@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createWashAction, lookupCustomerAction, lookupPlateAction } from "@/lib/actions/washes";
@@ -76,6 +76,17 @@ export function WashForm({
   const [customerPhone, setCustomerPhone] = useState("");
   const [note, setNote] = useState("");
   const [done, setDone] = useState<{ id: string } | null>(null);
+  const plateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const customerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const plateRequest = useRef(0);
+  const customerRequest = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (plateTimer.current) clearTimeout(plateTimer.current);
+      if (customerTimer.current) clearTimeout(customerTimer.current);
+    };
+  }, []);
 
   const theoretical = useMemo(() => {
     return serviceIds.reduce((sum, id) => {
@@ -87,24 +98,31 @@ export function WashForm({
 
   const amount = finalAmount ?? theoretical;
 
-  async function onPlateChange(value: string) {
-    setPlate(value.toUpperCase());
-    if (value.trim().length < 2) {
+  function onPlateChange(value: string) {
+    const next = value.toUpperCase();
+    setPlate(next);
+    if (plateTimer.current) clearTimeout(plateTimer.current);
+    if (next.trim().length < 2) {
       setMatches([]);
       return;
     }
-    const found = await lookupPlateAction(value);
-    setMatches(
-      (found ?? []).map((row) => ({
-        plate: row.plate,
-        vehicle_type_id: row.vehicle_type_id,
-        customer_id: row.customer_id,
-        customers: Array.isArray(row.customers) ? row.customers[0] ?? null : row.customers,
-      })),
-    );
+    const requestId = ++plateRequest.current;
+    plateTimer.current = setTimeout(() => {
+      void lookupPlateAction(next).then((found) => {
+        if (requestId !== plateRequest.current) return;
+        setMatches(
+          (found ?? []).map((row) => ({
+            plate: row.plate,
+            vehicle_type_id: row.vehicle_type_id,
+            customer_id: row.customer_id,
+            customers: Array.isArray(row.customers) ? row.customers[0] ?? null : row.customers,
+          })),
+        );
+      });
+    }, 220);
   }
 
-  async function onCustomerQuery(value: string, field: "name" | "phone") {
+  function onCustomerQuery(value: string, field: "name" | "phone") {
     if (field === "name") {
       setCustomerName(value);
       setCustomerId(null);
@@ -112,12 +130,18 @@ export function WashForm({
       setCustomerPhone(value);
       setCustomerId(null);
     }
+    if (customerTimer.current) clearTimeout(customerTimer.current);
     if (value.trim().length < 2) {
       setCustomerMatches([]);
       return;
     }
-    const found = await lookupCustomerAction(value);
-    setCustomerMatches(found);
+    const requestId = ++customerRequest.current;
+    customerTimer.current = setTimeout(() => {
+      void lookupCustomerAction(value).then((found) => {
+        if (requestId !== customerRequest.current) return;
+        setCustomerMatches(found);
+      });
+    }, 220);
   }
 
   function selectCustomer(match: CustomerMatch) {
@@ -152,28 +176,52 @@ export function WashForm({
   }
 
   function submit() {
+    if (pending) return;
+    if (!plate.trim()) {
+      toast.error("Plaque requise");
+      return;
+    }
+    if (serviceIds.length === 0) {
+      toast.error("Choisissez au moins une prestation");
+      return;
+    }
+    if (employeeIds.length === 0) {
+      toast.error("Choisissez au moins un employé");
+      return;
+    }
+    if (amount !== theoretical && !discountReason) {
+      toast.error("Indiquez le motif de la différence de prix");
+      return;
+    }
+
     startTransition(async () => {
-      const result = await createWashAction({
-        vehicleTypeId,
-        plate,
-        serviceIds,
-        employeeIds,
-        paymentMethod,
-        theoreticalAmount: theoretical,
-        finalAmount: amount,
-        discountReason: theoretical === amount ? null : discountReason || null,
-        customerId,
-        customerName: customerName || null,
-        customerPhone: customerPhone || null,
-        note: note || null,
-      });
-      if ("error" in result && result.error) {
-        toast.error(result.error);
-        return;
-      }
-      if ("id" in result && result.id) {
-        toast.success("Lavage enregistré avec succès");
-        setDone({ id: result.id });
+      try {
+        const result = await createWashAction({
+          vehicleTypeId,
+          plate,
+          serviceIds,
+          employeeIds,
+          paymentMethod,
+          theoreticalAmount: theoretical,
+          finalAmount: amount,
+          discountReason: theoretical === amount ? null : discountReason || null,
+          customerId,
+          customerName: customerName || null,
+          customerPhone: customerPhone || null,
+          note: note || null,
+        });
+        if ("error" in result && result.error) {
+          toast.error(result.error);
+          return;
+        }
+        if ("id" in result && result.id) {
+          toast.success("Lavage enregistré avec succès");
+          setDone({ id: result.id });
+        } else {
+          toast.error("Enregistrement impossible");
+        }
+      } catch {
+        toast.error("Enregistrement impossible. Réessayez.");
       }
     });
   }
@@ -227,7 +275,7 @@ export function WashForm({
         <Input
           id="plate"
           value={plate}
-          onChange={(e) => void onPlateChange(e.target.value)}
+          onChange={(e) => onPlateChange(e.target.value)}
           className="h-12 text-lg uppercase"
           autoComplete="off"
         />
@@ -375,7 +423,7 @@ export function WashForm({
               className="h-11"
               value={customerName}
               autoComplete="off"
-              onChange={(e) => void onCustomerQuery(e.target.value, "name")}
+              onChange={(e) => onCustomerQuery(e.target.value, "name")}
             />
           </div>
           <div className="min-w-0 space-y-2">
@@ -386,7 +434,7 @@ export function WashForm({
               inputMode="tel"
               value={customerPhone}
               autoComplete="off"
-              onChange={(e) => void onCustomerQuery(e.target.value, "phone")}
+              onChange={(e) => onCustomerQuery(e.target.value, "phone")}
             />
           </div>
         </div>
