@@ -24,6 +24,7 @@ type Employee = { id: string; first_name: string; last_name: string; is_active: 
 type PlateMatch = {
   plate: string;
   vehicle_type_id: string | null;
+  customer_id: string | null;
   customers: { name: string | null; phone: string | null } | null;
 };
 type CustomerMatch = {
@@ -97,6 +98,7 @@ export function WashForm({
       (found ?? []).map((row) => ({
         plate: row.plate,
         vehicle_type_id: row.vehicle_type_id,
+        customer_id: row.customer_id,
         customers: Array.isArray(row.customers) ? row.customers[0] ?? null : row.customers,
       })),
     );
@@ -241,7 +243,7 @@ export function WashForm({
                   if (match.vehicle_type_id) setVehicleTypeId(match.vehicle_type_id);
                   setCustomerName(match.customers?.name ?? "");
                   setCustomerPhone(match.customers?.phone ?? "");
-                  setCustomerId(null);
+                  setCustomerId(match.customer_id);
                   setMatches([]);
                 }}
               >

@@ -43,7 +43,7 @@ export default async function ExpensesPage({
   return (
     <div className="space-y-6">
       <PageHeader title="Dépenses" description="Charges validées uniquement">
-        <Button variant="outline" render={<Link href="/expenses/recurring" />}>
+        <Button variant="outline" nativeButton={false} render={<Link href="/expenses/recurring" />}>
           Récurrentes
         </Button>
       </PageHeader>

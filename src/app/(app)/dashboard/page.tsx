@@ -60,7 +60,7 @@ export default async function DashboardPage({
   return (
     <div className="space-y-6">
       <PageHeader title="Tableau de bord" description={range.label}>
-        <Button className="h-11" render={<Link href="/washes/new" />}>
+        <Button className="h-11" nativeButton={false} render={<Link href="/washes/new" />}>
           Nouveau lavage
         </Button>
       </PageHeader>

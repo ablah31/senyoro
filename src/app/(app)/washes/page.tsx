@@ -100,7 +100,7 @@ export default async function WashesPage({
   return (
     <div>
       <PageHeader title="Lavages" description="Historique filtrable des transactions">
-        <Button className="h-11" render={<Link href="/washes/new" />}>
+        <Button className="h-11" nativeButton={false} render={<Link href="/washes/new" />}>
           Nouveau lavage
         </Button>
       </PageHeader>
@@ -167,6 +167,7 @@ export default async function WashesPage({
                 <Button
                   variant="outline"
                   render={<Link href={toSearchString(queryValues, { page: page - 1 })} />}
+                  nativeButton={false}
                 >
                   Précédent
                 </Button>
@@ -175,6 +176,7 @@ export default async function WashesPage({
                 <Button
                   variant="outline"
                   render={<Link href={toSearchString(queryValues, { page: page + 1 })} />}
+                  nativeButton={false}
                 >
                   Suivant
                 </Button>

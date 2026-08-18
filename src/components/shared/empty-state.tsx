@@ -19,7 +19,7 @@ export function EmptyState({
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
       ) : null}
       {actionLabel && actionHref ? (
-        <Button className="mt-6 h-11 px-4" render={<Link href={actionHref} />}>
+        <Button className="mt-6 h-11 px-4" nativeButton={false} render={<Link href={actionHref} />}>
           {actionLabel}
         </Button>
       ) : null}

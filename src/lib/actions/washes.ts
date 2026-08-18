@@ -101,9 +101,15 @@ async function resolveCustomerAndVehicle(input: {
       if (error) throw error;
       customerId = created.id;
     } else {
+      const { data: existing } = await supabase
+        .from("customers")
+        .select("name, phone")
+        .eq("id", customerId)
+        .maybeSingle();
       const patch: { name?: string | null; phone?: string | null } = {};
-      if (name) patch.name = name;
-      if (phone) patch.phone = phone;
+      // Ne pas écraser un nom/téléphone déjà connus avec une saisie partielle.
+      if (name && !existing?.name) patch.name = name;
+      if (phone && !existing?.phone) patch.phone = phone;
       if (Object.keys(patch).length) {
         await supabase.from("customers").update(patch).eq("id", customerId);
       }
