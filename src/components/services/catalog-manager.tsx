@@ -69,7 +69,7 @@ export function CatalogManager({
             </div>
           ))}
         </div>
-        <Button className="h-11" disabled={pending}>
+        <Button type="submit" className="h-11" disabled={pending}>
           Créer
         </Button>
       </form>
@@ -119,7 +119,7 @@ export function CatalogManager({
         }}
       >
         <Input name="name" placeholder="Nouveau type de véhicule" className="h-11" />
-        <Button className="h-11">Ajouter</Button>
+        <Button type="submit" className="h-11">Ajouter</Button>
       </form>
     </div>
   );

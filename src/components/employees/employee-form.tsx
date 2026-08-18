@@ -121,7 +121,7 @@ export function EmployeeForm({
         <Textarea name="notes" defaultValue={employee?.notes ?? ""} />
       </div>
       <div className="flex gap-2 md:col-span-2">
-        <Button className="h-11" disabled={pending}>
+        <Button type="submit" className="h-11" disabled={pending}>
           Enregistrer
         </Button>
         {employee ? (

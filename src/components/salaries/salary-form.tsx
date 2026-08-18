@@ -65,7 +65,7 @@ export function SalaryForm({
         <Label>Commentaire</Label>
         <Input name="comment" className="h-11" placeholder="Absences durant le mois" />
       </div>
-      <Button className="h-11 md:col-span-2" disabled={pending}>
+      <Button type="submit" className="h-11 md:col-span-2" disabled={pending}>
         {pending ? "Enregistrement…" : "Enregistrer le paiement"}
       </Button>
     </form>

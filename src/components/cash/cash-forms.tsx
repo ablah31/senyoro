@@ -52,7 +52,7 @@ export function CashForms({
           <Label>Solde Mobile Money initial</Label>
           <Input className="h-11" inputMode="numeric" value={openingMm} onChange={(e) => setOpeningMm(e.target.value)} />
         </div>
-        <Button className="h-11 w-full" disabled={pending}>
+        <Button type="submit" className="h-11 w-full" disabled={pending}>
           {pending ? "Enregistrement…" : "Enregistrer l'ouverture"}
         </Button>
       </form>
@@ -91,7 +91,7 @@ export function CashForms({
           <Label>Commentaire</Label>
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)} />
         </div>
-        <Button className="h-11 w-full" disabled={pending || closed}>
+        <Button type="submit" className="h-11 w-full" disabled={pending || closed}>
           {pending ? "Enregistrement…" : "Clôturer"}
         </Button>
       </form>

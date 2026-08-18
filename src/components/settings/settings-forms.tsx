@@ -99,7 +99,7 @@ export function SettingsForms({
           />
           <p className="text-xs text-muted-foreground">{uploadHint("organization-logos")}</p>
         </div>
-        <Button className="h-11" disabled={pending}>
+        <Button type="submit" className="h-11" disabled={pending}>
           Enregistrer
         </Button>
       </form>
@@ -142,7 +142,7 @@ export function SettingsForms({
           }}
         >
           <Input name="name" placeholder="Nouvelle catégorie" className="h-11" />
-          <Button>Ajouter</Button>
+          <Button type="submit">Ajouter</Button>
         </form>
       </section>
 
@@ -157,7 +157,7 @@ export function SettingsForms({
           }}
         >
           <Input name="name" placeholder="Nouveau type" className="h-11" />
-          <Button>Ajouter</Button>
+          <Button type="submit">Ajouter</Button>
         </form>
         <p className="text-sm text-muted-foreground">{serviceCount} prestations dans le catalogue.</p>
       </section>

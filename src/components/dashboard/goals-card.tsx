@@ -60,7 +60,7 @@ export function GoalsCard({
       >
         <Input name="revenueTarget" defaultValue={revenueTarget} className="h-11" />
         <Input name="washesTarget" defaultValue={washesTarget} className="h-11" />
-        <Button className="h-11" disabled={pending}>
+        <Button type="submit" className="h-11" disabled={pending}>
           Enregistrer
         </Button>
       </form>

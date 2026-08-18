@@ -94,7 +94,7 @@ export function RecurringManager({
             </option>
           ))}
         </select>
-        <Button className="h-11 md:col-span-2" disabled={pending}>
+        <Button type="submit" className="h-11 md:col-span-2" disabled={pending}>
           Créer la récurrence
         </Button>
       </form>

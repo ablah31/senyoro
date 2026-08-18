@@ -23,15 +23,22 @@ async function ensureCashSession(
   date: string,
   openingCash = 0,
 ) {
-  await supabase.from("cash_sessions").upsert(
-    {
-      organization_id: organizationId,
-      business_date: date,
-      opening_cash: openingCash,
-      opening_mobile_money: 0,
-    },
-    { onConflict: "organization_id,business_date", ignoreDuplicates: true },
-  );
+  const { data: existing } = await supabase
+    .from("cash_sessions")
+    .select("id")
+    .eq("business_date", date)
+    .maybeSingle();
+  if (existing) return;
+  const { error } = await supabase.from("cash_sessions").insert({
+    organization_id: organizationId,
+    business_date: date,
+    opening_cash: openingCash,
+    opening_mobile_money: 0,
+  });
+  // Ignore race if another request created the session first.
+  if (error && error.code !== "23505") {
+    console.error("ensureCashSession", error.message);
+  }
 }
 
 async function resolveCustomerAndVehicle(

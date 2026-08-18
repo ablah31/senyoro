@@ -125,7 +125,7 @@ export function ExpenseForm({
         <p className="text-xs text-muted-foreground">{uploadHint("expense-receipts")}</p>
       </div>
       <div className="md:col-span-2">
-        <Button className="h-11 w-full" disabled={pending}>
+        <Button type="submit" className="h-11 w-full" disabled={pending}>
           {pending ? "Enregistrement…" : "Enregistrer la dépense"}
         </Button>
       </div>
