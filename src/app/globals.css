@@ -130,6 +130,9 @@
   html {
     @apply font-sans;
   }
+  body {
+    overflow-x: hidden;
+  }
   .tabular-amount {
     font-variant-numeric: tabular-nums;
     font-family: var(--font-mono), ui-monospace, monospace;

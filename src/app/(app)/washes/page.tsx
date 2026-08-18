@@ -133,16 +133,16 @@ export default async function WashesPage({
               <Link
                 key={wash.id}
                 href={`/washes/${wash.id}`}
-                className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+                className="block min-w-0 overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{wash.plate ?? "Sans plaque"}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{wash.plate ?? "Sans plaque"}</p>
+                    <p className="truncate text-sm text-muted-foreground">
                       {formatDateTime(wash.occurred_at)} · {vehicle?.name}
                     </p>
-                    <p className="mt-1 text-sm">{servicesForWash.map((s) => s.name).join(", ")}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-1 truncate text-sm">{servicesForWash.map((s) => s.name).join(", ")}</p>
+                    <p className="truncate text-xs text-muted-foreground">
                       {employeesForWash
                         .map((row) =>
                           row.employees ? `${row.employees.first_name} ${row.employees.last_name}` : "",
@@ -151,7 +151,7 @@ export default async function WashesPage({
                         .join(", ")}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <p className="tabular-amount font-semibold">{formatGNF(wash.final_amount)}</p>
                     <Badge variant={wash.status === "active" ? "secondary" : "destructive"}>
                       {wash.status === "active" ? PAYMENT_LABELS[wash.payment_method] : "Annulé"}

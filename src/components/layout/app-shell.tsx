@@ -73,7 +73,7 @@ export function AppShell({
       </aside>
 
       <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur lg:h-16 lg:px-6">
+        <header className="sticky top-0 z-20 flex h-14 min-w-0 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur lg:h-16 lg:px-6">
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
               render={
@@ -102,11 +102,11 @@ export function AppShell({
               </nav>
             </SheetContent>
           </Sheet>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <GlobalSearch />
           </div>
         </header>
-        <main className="px-4 py-4 pb-24 lg:px-8 lg:py-6 lg:pb-8">{children}</main>
+        <main className="min-w-0 overflow-x-hidden px-4 py-4 pb-24 lg:px-8 lg:py-6 lg:pb-8">{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur lg:hidden">

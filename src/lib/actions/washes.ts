@@ -31,9 +31,14 @@ async function ensureCashSession(date: string) {
   });
 }
 
+function normalizePhone(phone: string) {
+  return phone.trim().replace(/\s+/g, "");
+}
+
 async function resolveCustomerAndVehicle(input: {
   plate: string;
   vehicleTypeId: string;
+  customerId?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
 }) {
@@ -47,11 +52,29 @@ async function resolveCustomerAndVehicle(input: {
     .eq("plate", plate)
     .maybeSingle();
 
-  let customerId = existingVehicle?.customer_id ?? null;
+  let customerId = input.customerId ?? existingVehicle?.customer_id ?? null;
   const name = input.customerName?.trim() || null;
-  const phone = input.customerPhone?.trim() || null;
+  const phone = input.customerPhone ? normalizePhone(input.customerPhone) || null : null;
 
-  if (name || phone) {
+  if (customerId) {
+    const { data: selected } = await supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("id", customerId)
+      .maybeSingle();
+    if (!selected) {
+      customerId = null;
+    } else {
+      const patch: { name?: string | null; phone?: string | null } = {};
+      if (name && name !== selected.name) patch.name = name;
+      if (phone && phone !== selected.phone) patch.phone = phone;
+      if (Object.keys(patch).length) {
+        await supabase.from("customers").update(patch).eq("id", customerId);
+      }
+    }
+  }
+
+  if (!customerId && (name || phone)) {
     if (phone) {
       const { data: byPhone } = await supabase
         .from("customers")
@@ -59,6 +82,15 @@ async function resolveCustomerAndVehicle(input: {
         .eq("phone", phone)
         .maybeSingle();
       if (byPhone) customerId = byPhone.id;
+    }
+    if (!customerId && name) {
+      const { data: byName } = await supabase
+        .from("customers")
+        .select("id")
+        .ilike("name", name)
+        .limit(1)
+        .maybeSingle();
+      if (byName) customerId = byName.id;
     }
     if (!customerId) {
       const { data: created, error } = await supabase
@@ -68,8 +100,13 @@ async function resolveCustomerAndVehicle(input: {
         .single();
       if (error) throw error;
       customerId = created.id;
-    } else if (name || phone) {
-      await supabase.from("customers").update({ name, phone }).eq("id", customerId);
+    } else {
+      const patch: { name?: string | null; phone?: string | null } = {};
+      if (name) patch.name = name;
+      if (phone) patch.phone = phone;
+      if (Object.keys(patch).length) {
+        await supabase.from("customers").update(patch).eq("id", customerId);
+      }
     }
   }
 
@@ -114,6 +151,7 @@ export async function createWashAction(input: unknown) {
   const { customerId, vehicleId, plate } = await resolveCustomerAndVehicle({
     plate: data.plate,
     vehicleTypeId: data.vehicleTypeId,
+    customerId: data.customerId,
     customerName: data.customerName,
     customerPhone: data.customerPhone,
   });
@@ -199,11 +237,47 @@ export async function lookupPlateAction(plate: string) {
   await requireUser();
   const supabase = await requireClient();
   const normalized = normalizePlate(plate);
-  if (!normalized) return null;
+  if (!normalized) return [];
   const { data } = await supabase
     .from("vehicles")
     .select("id, plate, vehicle_type_id, customer_id, customers(name, phone)")
     .ilike("plate", `${normalized}%`)
     .limit(8);
   return data ?? [];
+}
+
+export async function lookupCustomerAction(query: string) {
+  await requireUser();
+  const supabase = await requireClient();
+  const q = query.trim().replace(/[%(),]/g, "");
+  if (q.length < 2) return [];
+
+  const digits = normalizePhone(q);
+  const isPhoneQuery = /\d{2,}/.test(digits);
+
+  let request = supabase
+    .from("customers")
+    .select("id, name, phone, vehicles(plate, vehicle_type_id)")
+    .order("name", { ascending: true })
+    .limit(8);
+
+  if (isPhoneQuery) {
+    request = request.ilike("phone", `%${digits}%`);
+  } else {
+    request = request.ilike("name", `%${q}%`);
+  }
+
+  const { data } = await request;
+  return (data ?? []).map((row) => {
+    const vehicles = Array.isArray(row.vehicles) ? row.vehicles : [];
+    return {
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      vehicles: vehicles.map((vehicle) => ({
+        plate: vehicle.plate,
+        vehicle_type_id: vehicle.vehicle_type_id,
+      })),
+    };
+  });
 }

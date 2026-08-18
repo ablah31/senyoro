@@ -19,16 +19,16 @@ export function LineMetricChart({
   data: { bucket: string; value: number }[];
 }) {
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="truncate">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="aspect-[16/9] min-h-[180px] w-full">
-          <LineChart data={data}>
+      <CardContent className="min-w-0 overflow-hidden">
+        <ChartContainer config={chartConfig} className="aspect-[16/9] min-h-[180px] w-full min-w-0">
+          <LineChart data={data} margin={{ left: 4, right: 8 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="bucket" tickFormatter={(v) => String(v).slice(8)} />
-            <YAxis tickFormatter={(v) => formatNumber(v)} width={72} />
+            <YAxis tickFormatter={(v) => formatNumber(v)} width={56} tick={{ fontSize: 11 }} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Line dataKey="value" type="monotone" stroke="var(--chart-1)" strokeWidth={2} dot={false} />
           </LineChart>
@@ -46,16 +46,25 @@ export function BarMetricChart({
   data: { name: string; value: number }[];
 }) {
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="truncate">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="aspect-[16/9] min-h-[180px] w-full">
-          <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
+      <CardContent className="min-w-0 overflow-hidden">
+        <ChartContainer config={chartConfig} className="aspect-[16/9] min-h-[180px] w-full min-w-0">
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 8 }}>
             <CartesianGrid horizontal={false} />
             <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" width={90} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={72}
+              tick={{ fontSize: 11 }}
+              tickFormatter={(value) => {
+                const label = String(value);
+                return label.length > 12 ? `${label.slice(0, 12)}…` : label;
+              }}
+            />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar dataKey="value" fill="var(--chart-1)" radius={6} />
           </BarChart>
@@ -73,12 +82,12 @@ export function PieMetricChart({
   data: { name: string; value: number }[];
 }) {
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="truncate">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[240px]">
+      <CardContent className="min-w-0 overflow-hidden">
+        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[240px] w-full min-w-0">
           <PieChart>
             <ChartTooltip content={<ChartTooltipContent />} />
             <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} paddingAngle={2}>

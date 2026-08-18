@@ -24,18 +24,18 @@ export function KpiCard({
         : ((value - previous) / previous) * 100;
 
   return (
-    <Card>
-      <CardContent className="px-4">
+    <Card className="min-w-0 overflow-hidden">
+      <CardContent className="min-w-0 px-4">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <p className="mt-2 text-xl font-semibold tracking-tight">
+        <p className="mt-2 truncate text-xl font-semibold tracking-tight">
           {isAmount ? <Amount value={value} /> : toAmount(value)}
         </p>
         {variation !== null ? (
           <p
             className={cn(
-              "mt-1 text-xs",
+              "mt-1 truncate text-xs",
               variation >= 0 ? "text-[var(--success)]" : "text-destructive",
             )}
           >

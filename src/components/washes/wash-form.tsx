@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createWashAction, lookupPlateAction } from "@/lib/actions/washes";
+import { createWashAction, lookupCustomerAction, lookupPlateAction } from "@/lib/actions/washes";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatGNF, toAmount } from "@/lib/format";
 import { formatDateTime } from "@/lib/dates";
@@ -21,6 +21,34 @@ type Service = {
   service_prices: { vehicle_type_id: string; price: number | string }[];
 };
 type Employee = { id: string; first_name: string; last_name: string; is_active: boolean };
+type PlateMatch = {
+  plate: string;
+  vehicle_type_id: string | null;
+  customers: { name: string | null; phone: string | null } | null;
+};
+type CustomerMatch = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  vehicles: { plate: string; vehicle_type_id: string | null }[];
+};
+
+function FormSection({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("min-w-0 space-y-3 overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10", className)}>
+      <p className="text-sm font-semibold">{title}</p>
+      {children}
+    </section>
+  );
+}
 
 export function WashForm({
   vehicleTypes,
@@ -35,14 +63,14 @@ export function WashForm({
   const [pending, startTransition] = useTransition();
   const [vehicleTypeId, setVehicleTypeId] = useState(vehicleTypes[0]?.id ?? "");
   const [plate, setPlate] = useState("");
-  const [matches, setMatches] = useState<
-    { plate: string; vehicle_type_id: string | null; customers: { name: string | null; phone: string | null } | null }[]
-  >([]);
+  const [matches, setMatches] = useState<PlateMatch[]>([]);
+  const [customerMatches, setCustomerMatches] = useState<CustomerMatch[]>([]);
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [employeeIds, setEmployeeIds] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money">("cash");
   const [finalAmount, setFinalAmount] = useState<number | null>(null);
   const [discountReason, setDiscountReason] = useState<string>("");
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [note, setNote] = useState("");
@@ -74,8 +102,51 @@ export function WashForm({
     );
   }
 
+  async function onCustomerQuery(value: string, field: "name" | "phone") {
+    if (field === "name") {
+      setCustomerName(value);
+      setCustomerId(null);
+    } else {
+      setCustomerPhone(value);
+      setCustomerId(null);
+    }
+    if (value.trim().length < 2) {
+      setCustomerMatches([]);
+      return;
+    }
+    const found = await lookupCustomerAction(value);
+    setCustomerMatches(found);
+  }
+
+  function selectCustomer(match: CustomerMatch) {
+    setCustomerId(match.id);
+    setCustomerName(match.name ?? "");
+    setCustomerPhone(match.phone ?? "");
+    setCustomerMatches([]);
+    const vehicle = match.vehicles[0];
+    if (vehicle?.plate && !plate) {
+      setPlate(vehicle.plate);
+      if (vehicle.vehicle_type_id) setVehicleTypeId(vehicle.vehicle_type_id);
+    }
+  }
+
   function toggle(list: string[], id: string) {
     return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+  }
+
+  function resetForm() {
+    setDone(null);
+    setPlate("");
+    setMatches([]);
+    setCustomerMatches([]);
+    setServiceIds([]);
+    setEmployeeIds([]);
+    setFinalAmount(null);
+    setDiscountReason("");
+    setCustomerId(null);
+    setCustomerName("");
+    setCustomerPhone("");
+    setNote("");
   }
 
   function submit() {
@@ -89,6 +160,7 @@ export function WashForm({
         theoreticalAmount: theoretical,
         finalAmount: amount,
         discountReason: theoretical === amount ? null : discountReason || null,
+        customerId,
         customerName: customerName || null,
         customerPhone: customerPhone || null,
         note: note || null,
@@ -106,22 +178,10 @@ export function WashForm({
 
   if (done) {
     return (
-      <div className="rounded-xl bg-card p-6 text-center ring-1 ring-foreground/10">
+      <div className="overflow-hidden rounded-xl bg-card p-6 text-center ring-1 ring-foreground/10">
         <p className="text-lg font-semibold">Lavage enregistré avec succès</p>
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button
-            className="h-11"
-            onClick={() => {
-              setDone(null);
-              setPlate("");
-              setServiceIds([]);
-              setEmployeeIds([]);
-              setFinalAmount(null);
-              setCustomerName("");
-              setCustomerPhone("");
-              setNote("");
-            }}
-          >
+          <Button className="h-11" onClick={resetForm}>
             Nouveau lavage
           </Button>
           <Button variant="outline" className="h-11" onClick={() => router.push(`/washes/${done.id}`)}>
@@ -133,12 +193,12 @@ export function WashForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4">
       <p className="text-sm text-muted-foreground">
         Date et heure : {formatDateTime(new Date())} (Guinée)
       </p>
-      <section className="space-y-2">
-        <Label>Type de véhicule</Label>
+
+      <FormSection title="Type de véhicule">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {vehicleTypes.map((type) => (
             <button
@@ -146,20 +206,22 @@ export function WashForm({
               type="button"
               onClick={() => setVehicleTypeId(type.id)}
               className={cn(
-                "min-h-12 rounded-xl px-3 text-sm font-medium ring-1 transition-colors",
+                "min-h-12 min-w-0 truncate rounded-xl px-3 text-sm font-medium ring-1 transition-colors",
                 vehicleTypeId === type.id
                   ? "bg-primary text-primary-foreground ring-primary"
-                  : "bg-card ring-foreground/10 hover:bg-muted",
+                  : "bg-background ring-foreground/10 hover:bg-muted",
               )}
             >
               {type.name}
             </button>
           ))}
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-2">
-        <Label htmlFor="plate">Plaque</Label>
+      <FormSection title="Plaque">
+        <Label htmlFor="plate" className="sr-only">
+          Plaque
+        </Label>
         <Input
           id="plate"
           value={plate}
@@ -168,32 +230,33 @@ export function WashForm({
           autoComplete="off"
         />
         {matches.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="overflow-hidden rounded-lg border bg-background">
             {matches.map((match) => (
               <button
                 key={match.plate}
                 type="button"
-                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-muted"
+                className="flex w-full min-w-0 flex-col items-start px-3 py-2 text-left hover:bg-muted"
                 onClick={() => {
                   setPlate(match.plate);
                   if (match.vehicle_type_id) setVehicleTypeId(match.vehicle_type_id);
                   setCustomerName(match.customers?.name ?? "");
                   setCustomerPhone(match.customers?.phone ?? "");
+                  setCustomerId(null);
                   setMatches([]);
                 }}
               >
                 <span className="font-medium">{match.plate}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="truncate text-xs text-muted-foreground">
                   {match.customers?.name ?? "Véhicule connu"}
+                  {match.customers?.phone ? ` · ${match.customers.phone}` : ""}
                 </span>
               </button>
             ))}
           </div>
         ) : null}
-      </section>
+      </FormSection>
 
-      <section className="space-y-2">
-        <Label>Prestations</Label>
+      <FormSection title="Prestations">
         <div className="space-y-2">
           {services
             .filter((s) => s.is_active)
@@ -211,20 +274,19 @@ export function WashForm({
                     setFinalAmount(null);
                   }}
                   className={cn(
-                    "flex min-h-14 w-full items-center justify-between rounded-xl px-4 text-left ring-1",
-                    selected ? "bg-accent ring-primary" : "bg-card ring-foreground/10",
+                    "flex min-h-14 w-full min-w-0 items-center justify-between gap-3 rounded-xl px-4 text-left ring-1",
+                    selected ? "bg-accent ring-primary" : "bg-background ring-foreground/10",
                   )}
                 >
-                  <span className="font-medium">{service.name}</span>
-                  <span className="tabular-amount text-sm">{formatGNF(price)}</span>
+                  <span className="min-w-0 truncate font-medium">{service.name}</span>
+                  <span className="tabular-amount shrink-0 text-sm">{formatGNF(price)}</span>
                 </button>
               );
             })}
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-2">
-        <Label>Employés</Label>
+      <FormSection title="Employés">
         <div className="flex flex-wrap gap-2">
           {employees
             .filter((e) => e.is_active)
@@ -236,8 +298,8 @@ export function WashForm({
                   type="button"
                   onClick={() => setEmployeeIds((curr) => toggle(curr, employee.id))}
                   className={cn(
-                    "min-h-11 rounded-full px-4 text-sm ring-1",
-                    selected ? "bg-primary text-primary-foreground ring-primary" : "bg-card ring-foreground/10",
+                    "min-h-11 max-w-full truncate rounded-full px-4 text-sm ring-1",
+                    selected ? "bg-primary text-primary-foreground ring-primary" : "bg-background ring-foreground/10",
                   )}
                 >
                   {employee.first_name} {employee.last_name}
@@ -245,10 +307,9 @@ export function WashForm({
               );
             })}
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-2">
-        <Label>Paiement</Label>
+      <FormSection title="Paiement">
         <div className="grid grid-cols-2 gap-2">
           {(["cash", "mobile_money"] as const).map((method) => (
             <button
@@ -256,21 +317,23 @@ export function WashForm({
               type="button"
               onClick={() => setPaymentMethod(method)}
               className={cn(
-                "min-h-14 rounded-xl text-sm font-medium ring-1",
+                "min-h-14 min-w-0 truncate rounded-xl text-sm font-medium ring-1",
                 paymentMethod === method
                   ? "bg-primary text-primary-foreground ring-primary"
-                  : "bg-card ring-foreground/10",
+                  : "bg-background ring-foreground/10",
               )}
             >
               {PAYMENT_LABELS[method]}
             </button>
           ))}
         </div>
-      </section>
+      </FormSection>
 
-      <section className="space-y-2">
-        <Label htmlFor="amount">Montant encaissé</Label>
+      <FormSection title="Montant encaissé">
         <p className="text-xs text-muted-foreground">Théorique : {formatGNF(theoretical)}</p>
+        <Label htmlFor="amount" className="sr-only">
+          Montant encaissé
+        </Label>
         <Input
           id="amount"
           inputMode="numeric"
@@ -280,9 +343,10 @@ export function WashForm({
         />
         {amount !== theoretical ? (
           <div className="space-y-2">
-            <Label>Motif de la différence</Label>
+            <Label htmlFor="discountReason">Motif de la différence</Label>
             <select
-              className="h-11 w-full rounded-lg border bg-transparent px-3"
+              id="discountReason"
+              className="h-11 w-full min-w-0 rounded-lg border bg-transparent px-3"
               value={discountReason}
               onChange={(e) => setDiscountReason(e.target.value)}
             >
@@ -295,29 +359,64 @@ export function WashForm({
             </select>
           </div>
         ) : null}
-      </section>
+      </FormSection>
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="customerName">Client (facultatif)</Label>
-          <Input id="customerName" className="h-11" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+      <FormSection title="Client (facultatif)">
+        <p className="text-xs text-muted-foreground">
+          Saisissez un nom ou un téléphone pour retrouver un client existant, ou créez-en un nouveau.
+        </p>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="customerName">Nom</Label>
+            <Input
+              id="customerName"
+              className="h-11"
+              value={customerName}
+              autoComplete="off"
+              onChange={(e) => void onCustomerQuery(e.target.value, "name")}
+            />
+          </div>
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="customerPhone">Téléphone</Label>
+            <Input
+              id="customerPhone"
+              className="h-11"
+              inputMode="tel"
+              value={customerPhone}
+              autoComplete="off"
+              onChange={(e) => void onCustomerQuery(e.target.value, "phone")}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="customerPhone">Téléphone (facultatif)</Label>
-          <Input
-            id="customerPhone"
-            className="h-11"
-            inputMode="tel"
-            value={customerPhone}
-            onChange={(e) => setCustomerPhone(e.target.value)}
-          />
-        </div>
-      </section>
+        {customerId ? (
+          <p className="text-xs text-[var(--success)]">Client existant sélectionné</p>
+        ) : null}
+        {customerMatches.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border bg-background">
+            {customerMatches.map((match) => (
+              <button
+                key={match.id}
+                type="button"
+                className="flex w-full min-w-0 flex-col items-start px-3 py-2 text-left hover:bg-muted"
+                onClick={() => selectCustomer(match)}
+              >
+                <span className="truncate font-medium">{match.name ?? "Client"}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {match.phone ?? "Sans téléphone"}
+                  {match.vehicles[0]?.plate ? ` · ${match.vehicles[0].plate}` : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </FormSection>
 
-      <div className="space-y-2">
-        <Label htmlFor="note">Note</Label>
+      <FormSection title="Note">
+        <Label htmlFor="note" className="sr-only">
+          Note
+        </Label>
         <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
-      </div>
+      </FormSection>
 
       <Button className="h-12 w-full text-base" onClick={submit} disabled={pending}>
         {pending ? "Enregistrement…" : `Encaisser ${formatGNF(amount)}`}

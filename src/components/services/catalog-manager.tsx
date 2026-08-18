@@ -76,13 +76,13 @@ export function CatalogManager({
 
       <div className="space-y-3">
         {services.map((service) => (
-          <div key={service.id} className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+          <div key={service.id} className="min-w-0 overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{service.name}</p>
-                <p className="text-sm text-muted-foreground">Réf. {formatGNF(service.reference_price)}</p>
+              <div className="min-w-0">
+                <p className="truncate font-medium">{service.name}</p>
+                <p className="truncate text-sm text-muted-foreground">Réf. {formatGNF(service.reference_price)}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex shrink-0 gap-2">
                 <Button size="sm" variant="outline" onClick={() => toggleServiceAction(service.id, !service.is_active)}>
                   {service.is_active ? "Désactiver" : "Activer"}
                 </Button>
@@ -95,7 +95,7 @@ export function CatalogManager({
               {vehicleTypes.map((type) => {
                 const price = service.service_prices.find((p) => p.vehicle_type_id === type.id)?.price;
                 return (
-                  <p key={type.id}>
+                  <p key={type.id} className="min-w-0 truncate">
                     {type.name}: {formatGNF(price)}
                   </p>
                 );

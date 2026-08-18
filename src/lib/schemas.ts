@@ -21,6 +21,7 @@ export const washSchema = z
       .optional()
       .nullable(),
     discountNote: z.string().optional().nullable(),
+    customerId: z.string().uuid().optional().nullable(),
     customerName: z.string().optional().nullable(),
     customerPhone: z.string().optional().nullable(),
     note: z.string().optional().nullable(),

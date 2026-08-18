@@ -27,7 +27,7 @@ export function ListFilters({
 
   return (
     <form
-      className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-4"
       onSubmit={(event) => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
@@ -46,7 +46,7 @@ export function ListFilters({
         <select
           name="vehicleTypeId"
           defaultValue={params.get("vehicleTypeId") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Type de véhicule"
         >
           <option value="">Tous les véhicules</option>
@@ -61,7 +61,7 @@ export function ListFilters({
         <select
           name="serviceId"
           defaultValue={params.get("serviceId") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Prestation"
         >
           <option value="">Toutes les prestations</option>
@@ -76,7 +76,7 @@ export function ListFilters({
         <select
           name="employeeId"
           defaultValue={params.get("employeeId") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Employé"
         >
           <option value="">Tous les employés</option>
@@ -91,7 +91,7 @@ export function ListFilters({
         <select
           name="paymentMethod"
           defaultValue={params.get("paymentMethod") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Moyen de paiement"
         >
           <option value="">Tous les paiements</option>
@@ -106,7 +106,7 @@ export function ListFilters({
         <select
           name="categoryId"
           defaultValue={params.get("categoryId") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Catégorie de dépense"
         >
           <option value="">Toutes les catégories</option>
@@ -121,7 +121,7 @@ export function ListFilters({
         <select
           name="nature"
           defaultValue={params.get("nature") ?? ""}
-          className="h-11 rounded-lg border bg-transparent px-3 text-sm"
+          className="h-11 min-w-0 rounded-lg border bg-transparent px-3 text-sm"
           aria-label="Nature de charge"
         >
           <option value="">Fixes et variables</option>
