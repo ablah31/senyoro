@@ -7,6 +7,10 @@ export function toAmount(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? Math.trunc(n) : 0;
 }
 
+export function parsePriceInput(value: string): number {
+  return toAmount(value.replace(/[\s\u00a0.,]/g, ""));
+}
+
 export function formatGNF(value: string | number | null | undefined): string {
   const amount = toAmount(value);
   const formatted = new Intl.NumberFormat("fr-GN", {

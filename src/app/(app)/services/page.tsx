@@ -8,7 +8,10 @@ export default async function ServicesPage() {
   const [services, vehicleTypes] = await Promise.all([getServices(), getVehicleTypes()]);
   return (
     <div>
-      <PageHeader title="Prestations" description="Prix par type de véhicule" />
+      <PageHeader
+        title="Prestations"
+        description="Touchez un prix pour le changer. C'est enregistré tout seul."
+      />
       <CatalogManager services={services} vehicleTypes={vehicleTypes} />
     </div>
   );

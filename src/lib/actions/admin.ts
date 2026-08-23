@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { actionError, requireActionContext } from "@/lib/auth";
 import { revalidateMutation } from "@/lib/actions/revalidate";
@@ -12,6 +13,8 @@ import {
   organizationSchema,
   salaryPaymentSchema,
   serviceSchema,
+  serviceNameSchema,
+  servicePriceSchema,
   vehicleTypeSchema,
 } from "@/lib/schemas";
 
@@ -25,6 +28,20 @@ async function requireCashEnabled() {
   if (error) return { error: error.message, supabase, orgId };
   if (!data?.cash_enabled) return { error: CASH_DISABLED_MESSAGE, supabase, orgId };
   return { error: null, supabase, orgId };
+}
+
+function toSlug(value: string) {
+  const slug = value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug.length >= 2 ? slug : `type-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function uniqueViolation(error: { code?: string } | null) {
+  return error?.code === "23505";
 }
 
 export async function upsertServiceAction(input: unknown) {
@@ -59,17 +76,59 @@ export async function upsertServiceAction(input: unknown) {
       serviceId = data.id;
     }
 
-    await supabase.from("service_prices").delete().eq("service_id", serviceId);
-    const { error: priceError } = await supabase.from("service_prices").insert(
-      parsed.data.prices.map((p) => ({
-        organization_id: orgId,
-        service_id: serviceId!,
-        vehicle_type_id: p.vehicleTypeId,
-        price: p.price,
-      })),
-    );
-    if (priceError) return { error: priceError.message };
+    if (parsed.data.prices.length > 0) {
+      await supabase.from("service_prices").delete().eq("service_id", serviceId);
+      const { error: priceError } = await supabase.from("service_prices").insert(
+        parsed.data.prices.map((p) => ({
+          organization_id: orgId,
+          service_id: serviceId!,
+          vehicle_type_id: p.vehicleTypeId,
+          price: p.price,
+        })),
+      );
+      if (priceError) return { error: priceError.message };
+    }
     revalidateMutation(["/services", "/settings", "/washes/new"], false);
+    return { success: true };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateServicePriceAction(input: unknown) {
+  try {
+    const parsed = servicePriceSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+    const { supabase, orgId } = await requireActionContext();
+    const { error } = await supabase.from("service_prices").upsert(
+      {
+        organization_id: orgId,
+        service_id: parsed.data.serviceId,
+        vehicle_type_id: parsed.data.vehicleTypeId,
+        price: parsed.data.price,
+      },
+      { onConflict: "service_id,vehicle_type_id" },
+    );
+    if (error) return { error: error.message };
+    after(() => {
+      revalidatePath("/washes/new");
+    });
+    return { success: true };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateServiceNameAction(input: unknown) {
+  try {
+    const parsed = serviceNameSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+    const { supabase } = await requireActionContext();
+    const { error } = await supabase.from("services").update({ name: parsed.data.name }).eq("id", parsed.data.id);
+    if (error) return { error: error.message };
+    after(() => {
+      revalidatePath("/washes/new");
+    });
     return { success: true };
   } catch (error) {
     return { error: actionError(error) };
@@ -112,25 +171,56 @@ export async function upsertVehicleTypeAction(input: unknown) {
     const parsed = vehicleTypeSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
     const { supabase, orgId } = await requireActionContext();
-    const slug = parsed.data.slug
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-");
+    const name = parsed.data.name;
     if (parsed.data.id) {
-      const { error } = await supabase
-        .from("vehicle_types")
-        .update({ name: parsed.data.name, slug })
-        .eq("id", parsed.data.id);
+      const { error } = await supabase.from("vehicle_types").update({ name }).eq("id", parsed.data.id);
+      if (uniqueViolation(error)) return { error: "Ce type de véhicule existe déjà." };
       if (error) return { error: error.message };
-    } else {
-      const { error } = await supabase.from("vehicle_types").insert({
-        organization_id: orgId,
-        name: parsed.data.name,
-        slug,
+      after(() => {
+        revalidatePath("/washes/new");
+        revalidatePath("/settings");
       });
-      if (error) return { error: error.message };
+      return { success: true };
     }
+
+    const { data: last } = await supabase
+      .from("vehicle_types")
+      .select("sort_order")
+      .eq("organization_id", orgId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data, error } = await supabase
+      .from("vehicle_types")
+      .insert({
+        organization_id: orgId,
+        name,
+        slug: toSlug(parsed.data.slug ?? name),
+        sort_order: (last?.sort_order ?? 0) + 1,
+      })
+      .select("id")
+      .single();
+    if (uniqueViolation(error)) return { error: "Ce type de véhicule existe déjà." };
+    if (error) return { error: error.message };
+    if (!data) return { error: "Type non créé" };
+
+    const { data: services } = await supabase
+      .from("services")
+      .select("id, reference_price")
+      .eq("organization_id", orgId);
+    if (services && services.length > 0) {
+      const { error: priceError } = await supabase.from("service_prices").insert(
+        services.map((service) => ({
+          organization_id: orgId,
+          service_id: service.id,
+          vehicle_type_id: data.id,
+          price: service.reference_price,
+        })),
+      );
+      if (priceError) return { error: priceError.message };
+    }
+
     revalidateMutation(["/services", "/settings", "/washes/new"], false);
     return { success: true };
   } catch (error) {

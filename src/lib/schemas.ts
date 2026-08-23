@@ -44,10 +44,21 @@ export const serviceSchema = z.object({
   ),
 });
 
+export const servicePriceSchema = z.object({
+  serviceId: z.string().uuid(),
+  vehicleTypeId: z.string().uuid(),
+  price: amountSchema,
+});
+
+export const serviceNameSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(2, "Nom requis"),
+});
+
 export const vehicleTypeSchema = z.object({
   id: z.string().uuid().optional(),
-  name: z.string().min(2),
-  slug: z.string().min(2),
+  name: z.string().trim().min(2, "Nom trop court"),
+  slug: z.string().min(2).optional(),
 });
 
 export const employeeSchema = z.object({

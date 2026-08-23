@@ -54,12 +54,24 @@ export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
       id: "start",
       question: "Par où commencer ?",
       points: [
-        "Créez d'abord les prestations et leurs prix.",
+        "Créez d'abord les prestations et leurs prix, sur la même page.",
         "Ajoutez les employés.",
         "Ensuite, enregistrez le premier lavage.",
         cashEnabled
           ? "Le suivi de caisse se règle dans Paramètres, à Système de caisse."
           : "Si vous voulez compter le tiroir, activez Système de caisse dans Paramètres.",
+      ],
+      href: "/services",
+      action: "Prestations",
+    },
+    {
+      id: "prices",
+      question: "Comment changer un prix ou un type de véhicule ?",
+      points: [
+        "Ouvrez Prestations.",
+        "Touchez le montant, changez-le, puis touchez ailleurs. C'est enregistré.",
+        "Pour renommer un type, touchez son nom en haut de la page.",
+        "Pour en ajouter un, écrivez-le puis Ajouter. Les tarifs se recopient, vous n'avez qu'à les ajuster.",
       ],
       href: "/services",
       action: "Prestations",

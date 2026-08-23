@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { upsertCategoryAction } from "@/lib/actions/expenses";
@@ -8,7 +9,6 @@ import {
   updateCashEnabledAction,
   updateOrganizationAction,
   updateOrganizationLogoAction,
-  upsertVehicleTypeAction,
 } from "@/lib/actions/admin";
 import { uploadHint, uploadToBucket } from "@/lib/client-upload";
 import { formatDateTime } from "@/lib/dates";
@@ -188,23 +188,18 @@ export function SettingsForms({
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Types de véhicules ({vehicleTypes.length})</h2>
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = new FormData(e.currentTarget);
-            void upsertVehicleTypeAction({ name: String(form.get("name")), slug: String(form.get("name")) });
-          }}
-        >
-          <Input name="name" placeholder="Nouveau type" className="h-11" />
-          <Button type="submit">Ajouter</Button>
-        </form>
-        <p className="text-sm text-muted-foreground">{serviceCount} prestations dans le catalogue.</p>
+        <h2 className="font-semibold">Types de véhicules</h2>
+        <p className="text-sm text-muted-foreground">
+          {vehicleTypes.length} types · {serviceCount} prestations. Pour ajouter, renommer ou changer un tarif,
+          ouvrez Prestations.
+        </p>
+        <Button variant="outline" className="h-11 w-fit" nativeButton={false} render={<Link href="/services" />}>
+          Ouvrir Prestations
+        </Button>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold">Journal d'activité</h2>
+        <h2 className="font-semibold">Journal d&apos;activité</h2>
         {logs.map((log) => (
           <div key={log.id} className="rounded-lg bg-card p-3 text-sm ring-1 ring-foreground/10">
             {formatDateTime(log.created_at)} · {log.action} · {log.table_name}

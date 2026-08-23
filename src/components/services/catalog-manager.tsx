@@ -1,20 +1,22 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { deleteServiceAction, toggleServiceAction, upsertServiceAction, upsertVehicleTypeAction } from "@/lib/actions/admin";
-import { formatGNF } from "@/lib/format";
+import { upsertServiceAction } from "@/lib/actions/admin";
+import { parsePriceInput } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ServicePriceCard } from "@/components/services/service-price-card";
+import { VehicleTypesEditor } from "@/components/services/vehicle-types-editor";
 
 type Service = {
   id: string;
   name: string;
-  description: string | null;
-  reference_price: number;
   is_active: boolean;
-  service_prices: { vehicle_type_id: string; price: number }[];
+  reference_price: number | string;
+  service_prices: { vehicle_type_id: string; price: number | string }[];
 };
 
 export function CatalogManager({
@@ -24,102 +26,86 @@ export function CatalogManager({
   services: Service[];
   vehicleTypes: { id: string; name: string }[];
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
+      <VehicleTypesEditor types={vehicleTypes} />
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="font-semibold">Tarifs</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Touchez un montant, changez-le, puis touchez ailleurs. C&apos;est enregistré.
+          </p>
+        </div>
+        {services.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune prestation pour l&apos;instant.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {services.map((service) => (
+              <ServicePriceCard key={service.id} service={service} vehicleTypes={vehicleTypes} />
+            ))}
+          </div>
+        )}
+      </section>
+
       <form
-        className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const form = new FormData(e.currentTarget);
+        className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const data = new FormData(form);
+          const name = String(data.get("name") ?? "").trim();
+          const price = parsePriceInput(String(data.get("price") ?? ""));
           startTransition(async () => {
-            const prices = vehicleTypes.map((type) => ({
-              vehicleTypeId: type.id,
-              price: Number(form.get(`price-${type.id}`) || 0),
-            }));
             const result = await upsertServiceAction({
-              name: String(form.get("name")),
-              description: String(form.get("description") || "") || null,
-              referencePrice: Number(form.get("referencePrice") || 0),
-              prices,
+              name,
+              referencePrice: price,
+              prices: vehicleTypes.map((type) => ({ vehicleTypeId: type.id, price })),
             });
-            if (result.error) toast.error(result.error);
-            else toast.success("Prestation enregistrée");
+            if (result.error) {
+              toast.error(result.error);
+              return;
+            }
+            toast.success("Prestation créée");
+            form.reset();
+            router.refresh();
           });
         }}
       >
         <p className="font-semibold">Nouvelle prestation</p>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Nom</Label>
-            <Input name="name" required className="h-11" />
+        <div className="grid gap-3 sm:grid-cols-[1fr_10rem_auto]">
+          <div className="space-y-1">
+            <Label htmlFor="new-service-name">Nom</Label>
+            <Input id="new-service-name" name="name" required minLength={2} autoComplete="off" className="h-11" />
           </div>
-          <div className="space-y-2">
-            <Label>Prix de référence</Label>
-            <Input name="referencePrice" inputMode="numeric" className="h-11" />
+          <div className="space-y-1">
+            <Label htmlFor="new-service-price">Prix</Label>
+            <div className="relative">
+              <Input
+                id="new-service-price"
+                name="price"
+                inputMode="numeric"
+                required
+                autoComplete="off"
+                className="h-11 pr-12 tabular-amount"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                GNF
+              </span>
+            </div>
+          </div>
+          <div className="flex items-end">
+            <Button type="submit" className="h-11 w-full sm:w-auto" disabled={pending}>
+              {pending ? "Création…" : "Créer"}
+            </Button>
           </div>
         </div>
-        <Input name="description" placeholder="Description facultative" className="h-11" />
-        <div className="grid gap-2 sm:grid-cols-2">
-          {vehicleTypes.map((type) => (
-            <div key={type.id} className="space-y-1">
-              <Label>{type.name}</Label>
-              <Input name={`price-${type.id}`} inputMode="numeric" className="h-11" />
-            </div>
-          ))}
-        </div>
-        <Button type="submit" className="h-11" disabled={pending}>
-          Créer
-        </Button>
-      </form>
-
-      <div className="space-y-3">
-        {services.map((service) => (
-          <div key={service.id} className="min-w-0 overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{service.name}</p>
-                <p className="truncate text-sm text-muted-foreground">Réf. {formatGNF(service.reference_price)}</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <Button size="sm" variant="outline" onClick={() => toggleServiceAction(service.id, !service.is_active)}>
-                  {service.is_active ? "Désactiver" : "Activer"}
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => deleteServiceAction(service.id)}>
-                  Supprimer
-                </Button>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-1 text-xs sm:grid-cols-4">
-              {vehicleTypes.map((type) => {
-                const price = service.service_prices.find((p) => p.vehicle_type_id === type.id)?.price;
-                return (
-                  <p key={type.id} className="min-w-0 truncate">
-                    {type.name}: {formatGNF(price)}
-                  </p>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <form
-        className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const form = new FormData(e.currentTarget);
-          startTransition(async () => {
-            const name = String(form.get("name"));
-            const result = await upsertVehicleTypeAction({ name, slug: name });
-            if (result.error) toast.error(result.error);
-            else toast.success("Type de véhicule ajouté");
-          });
-        }}
-      >
-        <Input name="name" placeholder="Nouveau type de véhicule" className="h-11" />
-        <Button type="submit" className="h-11">Ajouter</Button>
+        <p className="text-xs text-muted-foreground">
+          Ce prix est copié sur tous les types. Ajustez ensuite chaque case si besoin.
+        </p>
       </form>
     </div>
   );
