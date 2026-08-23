@@ -15,6 +15,7 @@ import {
   serviceSchema,
   serviceNameSchema,
   servicePriceSchema,
+  serviceGlobalPriceSchema,
   vehicleTypeSchema,
 } from "@/lib/schemas";
 
@@ -110,6 +111,45 @@ export async function updateServicePriceAction(input: unknown) {
       { onConflict: "service_id,vehicle_type_id" },
     );
     if (error) return { error: error.message };
+    after(() => {
+      revalidatePath("/washes/new");
+    });
+    return { success: true };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateServiceGlobalPriceAction(input: unknown) {
+  try {
+    const parsed = serviceGlobalPriceSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+    const { supabase, orgId } = await requireActionContext();
+    const { error: serviceError } = await supabase
+      .from("services")
+      .update({ reference_price: parsed.data.price })
+      .eq("id", parsed.data.serviceId);
+    if (serviceError) return { error: serviceError.message };
+
+    const { data: types, error: typesError } = await supabase
+      .from("vehicle_types")
+      .select("id")
+      .eq("organization_id", orgId);
+    if (typesError) return { error: typesError.message };
+
+    if (types && types.length > 0) {
+      const { error: priceError } = await supabase.from("service_prices").upsert(
+        types.map((type) => ({
+          organization_id: orgId,
+          service_id: parsed.data.serviceId,
+          vehicle_type_id: type.id,
+          price: parsed.data.price,
+        })),
+        { onConflict: "service_id,vehicle_type_id" },
+      );
+      if (priceError) return { error: priceError.message };
+    }
+
     after(() => {
       revalidatePath("/washes/new");
     });

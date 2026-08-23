@@ -50,6 +50,11 @@ export const servicePriceSchema = z.object({
   price: amountSchema,
 });
 
+export const serviceGlobalPriceSchema = z.object({
+  serviceId: z.string().uuid(),
+  price: amountSchema,
+});
+
 export const serviceNameSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(2, "Nom requis"),

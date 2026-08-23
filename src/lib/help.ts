@@ -69,9 +69,10 @@ export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
       question: "Comment changer un prix ou un type de véhicule ?",
       points: [
         "Ouvrez Prestations.",
+        "Le tarif global s'applique à tous les types de véhicule.",
         "Touchez le montant, changez-le, puis touchez ailleurs. C'est enregistré.",
-        "Pour renommer un type, touchez son nom en haut de la page.",
-        "Pour en ajouter un, écrivez-le puis Ajouter. Les tarifs se recopient, vous n'avez qu'à les ajuster.",
+        "Ouvrez Prix différents selon le type seulement si un véhicule coûte plus cher.",
+        "Pour un nouveau type, écrivez-le en haut puis Ajouter.",
       ],
       href: "/services",
       action: "Prestations",

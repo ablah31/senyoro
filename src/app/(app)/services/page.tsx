@@ -10,7 +10,7 @@ export default async function ServicesPage() {
     <div>
       <PageHeader
         title="Prestations"
-        description="Touchez un prix pour le changer. C'est enregistré tout seul."
+        description="Un tarif global s'applique à tous les types. Vous pouvez aussi affiner par véhicule."
       />
       <CatalogManager services={services} vehicleTypes={vehicleTypes} />
     </div>

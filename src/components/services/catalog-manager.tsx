@@ -37,7 +37,7 @@ export function CatalogManager({
         <div>
           <h2 className="font-semibold">Tarifs</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Touchez un montant, changez-le, puis touchez ailleurs. C&apos;est enregistré.
+            Touchez le tarif global pour le même prix partout. C&apos;est enregistré.
           </p>
         </div>
         {services.length === 0 ? (
@@ -82,7 +82,7 @@ export function CatalogManager({
             <Input id="new-service-name" name="name" required minLength={2} autoComplete="off" className="h-11" />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="new-service-price">Prix</Label>
+            <Label htmlFor="new-service-price">Tarif global</Label>
             <div className="relative">
               <Input
                 id="new-service-price"
@@ -104,7 +104,7 @@ export function CatalogManager({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Ce prix est copié sur tous les types. Ajustez ensuite chaque case si besoin.
+          Même prix pour tous les types de véhicule. Vous pourrez ensuite adapter un type si besoin.
         </p>
       </form>
     </div>

@@ -5,6 +5,7 @@ import { actionError, requireActionContext, type ActionContext } from "@/lib/aut
 import { revalidateMutation } from "@/lib/actions/revalidate";
 import { businessDate } from "@/lib/dates";
 import { washSchema } from "@/lib/schemas";
+import { toAmount } from "@/lib/format";
 import type { createClient } from "@/lib/supabase/server";
 
 type AppSupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -162,7 +163,7 @@ export async function createWashAction(input: unknown) {
     const { supabase, user, orgId }: ActionContext = await requireActionContext();
     const date = businessDate();
 
-    const [resolved, servicesResult, orgDefaults] = await Promise.all([
+    const [resolved, pricesResult, catalogResult, orgDefaults] = await Promise.all([
       resolveCustomerAndVehicle(supabase, orgId, {
         plate: data.plate,
         vehicleTypeId: data.vehicleTypeId,
@@ -172,9 +173,10 @@ export async function createWashAction(input: unknown) {
       }),
       supabase
         .from("service_prices")
-        .select("service_id, price, services(name)")
+        .select("service_id, price")
         .eq("vehicle_type_id", data.vehicleTypeId)
         .in("service_id", data.serviceIds),
+      supabase.from("services").select("id, name, reference_price").in("id", data.serviceIds),
       supabase
         .from("organizations")
         .select("default_opening_cash, cash_enabled")
@@ -182,11 +184,15 @@ export async function createWashAction(input: unknown) {
         .maybeSingle(),
     ]);
 
-    if (servicesResult.error) return { error: servicesResult.error.message };
-    const services = servicesResult.data ?? [];
-    if (services.length === 0) {
+    if (pricesResult.error) return { error: pricesResult.error.message };
+    if (catalogResult.error) return { error: catalogResult.error.message };
+    const catalog = catalogResult.data ?? [];
+    if (catalog.length !== data.serviceIds.length) {
       return { error: "Tarif introuvable pour les prestations sélectionnées" };
     }
+    const priceByService = new Map(
+      (pricesResult.data ?? []).map((row) => [row.service_id, row.price] as const),
+    );
 
     const { customerId, vehicleId, plate } = resolved;
 
@@ -215,16 +221,15 @@ export async function createWashAction(input: unknown) {
       .single();
     if (error) return { error: error.message };
 
-    const serviceRows = services.map((row) => {
-      const service = row.services as { name: string } | null;
-      return {
-        organization_id: orgId,
-        wash_id: wash.id,
-        service_id: row.service_id,
-        name: service?.name ?? "Prestation",
-        price: row.price,
-      };
-    });
+    const serviceRows = catalog.map((service) => ({
+      organization_id: orgId,
+      wash_id: wash.id,
+      service_id: service.id,
+      name: service.name,
+      price: toAmount(
+        priceByService.has(service.id) ? priceByService.get(service.id) : service.reference_price,
+      ),
+    }));
     const employeeRows = data.employeeIds.map((employeeId) => ({
       wash_id: wash.id,
       employee_id: employeeId,

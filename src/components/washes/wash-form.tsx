@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createWashAction, lookupCustomerAction, lookupPlateAction } from "@/lib/actions/washes";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatGNF, toAmount } from "@/lib/format";
+import { priceForVehicle } from "@/lib/service-price";
 import { formatDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ type Service = {
   id: string;
   name: string;
   is_active: boolean;
+  reference_price: number | string;
   service_prices: { vehicle_type_id: string; price: number | string }[];
 };
 type Employee = { id: string; first_name: string; last_name: string; is_active: boolean };
@@ -91,8 +93,7 @@ export function WashForm({
   const theoretical = useMemo(() => {
     return serviceIds.reduce((sum, id) => {
       const service = services.find((s) => s.id === id);
-      const price = service?.service_prices.find((p) => p.vehicle_type_id === vehicleTypeId)?.price;
-      return sum + toAmount(price);
+      return sum + priceForVehicle(service, vehicleTypeId);
     }, 0);
   }, [serviceIds, services, vehicleTypeId]);
 
@@ -311,9 +312,7 @@ export function WashForm({
           {services
             .filter((s) => s.is_active)
             .map((service) => {
-              const price = toAmount(
-                service.service_prices.find((p) => p.vehicle_type_id === vehicleTypeId)?.price,
-              );
+              const price = priceForVehicle(service, vehicleTypeId);
               const selected = serviceIds.includes(service.id);
               return (
                 <button
