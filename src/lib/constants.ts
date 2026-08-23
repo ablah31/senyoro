@@ -1,3 +1,6 @@
+export const CASH_DISABLED_MESSAGE =
+  "Le suivi de caisse est désactivé. Activez-le dans Paramètres.";
+
 export const PAYMENT_LABELS = {
   cash: "Espèces",
   mobile_money: "Mobile Money",

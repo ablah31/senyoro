@@ -1,9 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { upsertCategoryAction } from "@/lib/actions/expenses";
 import {
+  updateCashEnabledAction,
   updateOrganizationAction,
   updateOrganizationLogoAction,
   upsertVehicleTypeAction,
@@ -13,6 +15,7 @@ import { formatDateTime } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 export function SettingsForms({
   organization,
@@ -28,6 +31,7 @@ export function SettingsForms({
     default_opening_cash: number;
     currency: string;
     logo_url: string | null;
+    cash_enabled: boolean;
   };
   categories: { id: string; name: string; default_nature: "FIXE" | "VARIABLE"; is_system: boolean }[];
   vehicleTypes: { id: string; name: string }[];
@@ -35,9 +39,42 @@ export function SettingsForms({
   logs: { id: string; action: string; table_name: string; created_at: string }[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [cashEnabled, setCashEnabled] = useState(organization.cash_enabled);
+  const router = useRouter();
 
   return (
     <div className="space-y-8">
+      <section className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="cash-enabled">Système de caisse</Label>
+          <p className="text-sm text-muted-foreground">
+            Activez le suivi de caisse (fond du jour, clôture, écarts) quand vous en avez besoin. Les
+            paiements espèces et Mobile Money restent enregistrés sur chaque lavage.
+          </p>
+        </div>
+        <Switch
+          id="cash-enabled"
+          className="shrink-0"
+          checked={cashEnabled}
+          disabled={pending}
+          aria-label="Activer le système de caisse"
+          onCheckedChange={(checked) => {
+            const previous = cashEnabled;
+            setCashEnabled(checked);
+            startTransition(async () => {
+              const result = await updateCashEnabledAction(checked);
+              if (result.error) {
+                setCashEnabled(previous);
+                toast.error(result.error);
+                return;
+              }
+              toast.success(checked ? "Suivi de caisse activé" : "Suivi de caisse désactivé");
+              router.refresh();
+            });
+          }}
+        />
+      </section>
+
       <form
         className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2"
         onSubmit={(e) => {
@@ -63,10 +100,14 @@ export function SettingsForms({
           <Label>Téléphone</Label>
           <Input name="phone" defaultValue={organization.phone ?? ""} className="h-11" />
         </div>
-        <div className="space-y-2">
-          <Label>Fond de caisse par défaut</Label>
-          <Input name="defaultOpeningCash" defaultValue={organization.default_opening_cash} className="h-11" />
-        </div>
+        {cashEnabled ? (
+          <div className="space-y-2">
+            <Label>Fond de caisse par défaut</Label>
+            <Input name="defaultOpeningCash" defaultValue={organization.default_opening_cash} className="h-11" />
+          </div>
+        ) : (
+          <input type="hidden" name="defaultOpeningCash" value={organization.default_opening_cash} />
+        )}
         <div className="space-y-2 md:col-span-2">
           <Label>Adresse</Label>
           <Input name="address" defaultValue={organization.address ?? ""} className="h-11" />

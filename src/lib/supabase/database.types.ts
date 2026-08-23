@@ -446,6 +446,7 @@ export type Database = {
       organizations: {
         Row: {
           address: string | null
+          cash_enabled: boolean
           country: string
           created_at: string
           currency: string
@@ -458,6 +459,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cash_enabled?: boolean
           country?: string
           created_at?: string
           currency?: string
@@ -470,6 +472,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cash_enabled?: boolean
           country?: string
           created_at?: string
           currency?: string

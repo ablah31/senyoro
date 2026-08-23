@@ -1,4 +1,4 @@
-import { getCashDay, getDashboardKpis, getEmployees, getExpenseCategories, getNamedSeries, getServices, getVehicleTypes, periodFromSearch, washIdsForFilter } from "@/lib/queries";
+import { getCashDay, getDashboardKpis, getEmployees, getExpenseCategories, getNamedSeries, getOrganization, getServices, getVehicleTypes, periodFromSearch, washIdsForFilter } from "@/lib/queries";
 import { requireClient } from "@/lib/auth";
 import { toIsoDate } from "@/lib/dates";
 import { formatGNF, toAmount } from "@/lib/format";
@@ -30,13 +30,14 @@ export default async function ReportsPage({
   const range = periodFromSearch(params);
   const from = toIsoDate(range.from);
   const to = toIsoDate(range.to);
-  const [categories, vehicleTypes, services, employees, supabase, filteredIds] = await Promise.all([
+  const [categories, vehicleTypes, services, employees, supabase, filteredIds, org] = await Promise.all([
     getExpenseCategories(),
     getVehicleTypes(),
     getServices(),
     getEmployees(),
     requireClient(),
     washIdsForFilter({ employeeId: params.employeeId, serviceId: params.serviceId }),
+    getOrganization(),
   ]);
 
   const hasWashFilter = Boolean(
@@ -118,7 +119,7 @@ export default async function ReportsPage({
     .eq("is_active", true);
 
   const singleDay = from === to;
-  const cash = singleDay ? await getCashDay(from) : null;
+  const cash = org.cash_enabled && singleDay ? await getCashDay(from) : null;
 
   const qs = toSearchString({
     from,

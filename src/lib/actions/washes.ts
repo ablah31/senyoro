@@ -175,7 +175,11 @@ export async function createWashAction(input: unknown) {
         .select("service_id, price, services(name)")
         .eq("vehicle_type_id", data.vehicleTypeId)
         .in("service_id", data.serviceIds),
-      supabase.from("organizations").select("default_opening_cash").eq("id", orgId).maybeSingle(),
+      supabase
+        .from("organizations")
+        .select("default_opening_cash, cash_enabled")
+        .eq("id", orgId)
+        .maybeSingle(),
     ]);
 
     if (servicesResult.error) return { error: servicesResult.error.message };
@@ -236,10 +240,12 @@ export async function createWashAction(input: unknown) {
     if (wsResult.error) return { error: wsResult.error.message };
     if (weResult.error) return { error: weResult.error.message };
 
-    const openingCash = Number(orgDefaults.data?.default_opening_cash ?? 0);
-    after(() => {
-      void ensureCashSession(supabase, orgId, date, openingCash);
-    });
+    if (orgDefaults.data?.cash_enabled) {
+      const openingCash = Number(orgDefaults.data.default_opening_cash ?? 0);
+      after(() => {
+        void ensureCashSession(supabase, orgId, date, openingCash);
+      });
+    }
 
     revalidateMutation(["/washes", "/cash", "/dashboard", "/customers"]);
     return { id: wash.id };

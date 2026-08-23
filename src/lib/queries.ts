@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { requireClient } from "@/lib/auth";
 import { toIsoDate, type PeriodKey, getPeriodRange, nowInConakry } from "@/lib/dates";
 import { toAmount } from "@/lib/format";
@@ -150,12 +151,12 @@ export async function getExpenseCategories() {
   return data ?? [];
 }
 
-export async function getOrganization() {
+export const getOrganization = cache(async () => {
   const supabase = await requireClient();
   const { data, error } = await supabase.from("organizations").select("*").limit(1).single();
   if (error) throw error;
   return data;
-}
+});
 
 export async function washIdsForFilter(filter: { employeeId?: string; serviceId?: string }) {
   const supabase = await requireClient();

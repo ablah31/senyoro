@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Banknote,
   BarChart3,
+  CircleHelp,
   Droplets,
   LayoutDashboard,
   PlusCircle,
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/services", label: "Prestations", icon: Droplets },
   { href: "/reports", label: "Rapports", icon: BarChart3 },
   { href: "/settings", label: "Paramètres", icon: Settings },
+  { href: "/help", label: "Aide", icon: CircleHelp },
 ];
 
 export const MOBILE_PRIMARY: NavItem[] = [
@@ -39,3 +41,15 @@ export const MOBILE_PRIMARY: NavItem[] = [
   { href: "/cash", label: "Caisse", icon: Wallet },
   { href: "/expenses", label: "Dépenses", icon: Receipt },
 ];
+
+export function getNavItems(cashEnabled: boolean) {
+  if (cashEnabled) return NAV_ITEMS;
+  return NAV_ITEMS.filter((item) => item.href !== "/cash");
+}
+
+export function getMobilePrimary(cashEnabled: boolean) {
+  if (cashEnabled) return MOBILE_PRIMARY;
+  return MOBILE_PRIMARY.map((item) =>
+    item.href === "/cash" ? { href: "/customers", label: "Clients", icon: UserRound } : item,
+  );
+}

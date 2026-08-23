@@ -1,7 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { actionError, requireActionContext } from "@/lib/auth";
 import { revalidateMutation } from "@/lib/actions/revalidate";
+import { CASH_DISABLED_MESSAGE } from "@/lib/constants";
 import {
   cashCloseSchema,
   cashOpenSchema,
@@ -12,6 +14,18 @@ import {
   serviceSchema,
   vehicleTypeSchema,
 } from "@/lib/schemas";
+
+async function requireCashEnabled() {
+  const { supabase, orgId } = await requireActionContext();
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("cash_enabled")
+    .eq("id", orgId)
+    .single();
+  if (error) return { error: error.message, supabase, orgId };
+  if (!data?.cash_enabled) return { error: CASH_DISABLED_MESSAGE, supabase, orgId };
+  return { error: null, supabase, orgId };
+}
 
 export async function upsertServiceAction(input: unknown) {
   try {
@@ -198,7 +212,8 @@ export async function openCashAction(input: unknown) {
   try {
     const parsed = cashOpenSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { error: cashError, supabase, orgId } = await requireCashEnabled();
+    if (cashError) return { error: cashError };
     const { error } = await supabase.from("cash_sessions").upsert(
       {
         organization_id: orgId,
@@ -220,7 +235,8 @@ export async function closeCashAction(input: unknown) {
   try {
     const parsed = cashCloseSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase } = await requireActionContext();
+    const { error: cashError, supabase } = await requireCashEnabled();
+    if (cashError) return { error: cashError };
     const { error } = await supabase
       .from("cash_sessions")
       .update({
@@ -277,6 +293,20 @@ export async function updateOrganizationAction(input: unknown) {
       .eq("id", orgId);
     if (error) return { error: error.message };
     revalidateMutation(["/settings"], false);
+    return { success: true };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateCashEnabledAction(enabled: boolean) {
+  try {
+    if (typeof enabled !== "boolean") return { error: "Données invalides" };
+    const { supabase, orgId } = await requireActionContext();
+    const { error } = await supabase.from("organizations").update({ cash_enabled: enabled }).eq("id", orgId);
+    if (error) return { error: error.message };
+    revalidatePath("/", "layout");
+    revalidateMutation(["/settings", "/cash", "/reports"], false);
     return { success: true };
   } catch (error) {
     return { error: actionError(error) };

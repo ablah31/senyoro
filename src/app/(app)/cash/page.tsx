@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getCashDay, getOrganization } from "@/lib/queries";
 import { businessDate } from "@/lib/dates";
 import { formatGNF, toAmount } from "@/lib/format";
@@ -15,7 +16,9 @@ export default async function CashPage({
 }) {
   const params = await searchParams;
   const date = params.date ?? businessDate();
-  const [summary, org] = await Promise.all([getCashDay(date), getOrganization()]);
+  const org = await getOrganization();
+  if (!org.cash_enabled) redirect("/settings");
+  const summary = await getCashDay(date);
 
   const closed = Boolean(summary?.closed_at);
   const theoreticalCash = toAmount(summary?.theoretical_cash);

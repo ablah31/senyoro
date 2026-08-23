@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/lib/actions/auth";
-import { MOBILE_PRIMARY, NAV_ITEMS } from "@/lib/navigation";
+import { getMobilePrimary, getNavItems } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu } from "lucide-react";
+import { CircleHelp, LogOut, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { GlobalSearch } from "@/components/layout/global-search";
 
@@ -20,12 +20,16 @@ function isActive(pathname: string, href: string, match?: "exact" | "prefix") {
 export function AppShell({
   children,
   orgName,
+  cashEnabled,
 }: {
   children: React.ReactNode;
   orgName: string;
+  cashEnabled: boolean;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navItems = getNavItems(cashEnabled);
+  const mobileItems = getMobilePrimary(cashEnabled);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -40,7 +44,7 @@ export function AppShell({
           </div>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.match);
             const Icon = item.icon;
             return (
@@ -85,7 +89,7 @@ export function AppShell({
             <SheetContent side="left" className="w-64 bg-sidebar p-0 text-sidebar-foreground">
               <div className="px-5 py-4 text-sm font-semibold">{orgName}</div>
               <nav className="space-y-0.5 px-3">
-                {NAV_ITEMS.map((item) => {
+                {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
@@ -105,13 +109,24 @@ export function AppShell({
           <div className="min-w-0 flex-1">
             <GlobalSearch />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("size-11 shrink-0", isActive(pathname, "/help") && "text-primary")}
+            nativeButton={false}
+            aria-label="Aide"
+            title="Aide"
+            render={<Link href="/help" />}
+          >
+            <CircleHelp />
+          </Button>
         </header>
         <main className="min-w-0 overflow-x-hidden px-4 py-4 pb-24 lg:px-8 lg:py-6 lg:pb-8">{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur lg:hidden">
         <ul className="grid grid-cols-4">
-          {MOBILE_PRIMARY.map((item) => {
+          {mobileItems.map((item) => {
             const active = isActive(pathname, item.href, item.match);
             const Icon = item.icon;
             return (
