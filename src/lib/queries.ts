@@ -146,7 +146,11 @@ export async function getExpenseCategories() {
 
 export const getOrganization = cache(async () => {
   const supabase = await requireClient();
-  const { data, error } = await supabase.from("organizations").select("*").limit(1).single();
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("id, name, phone, address, currency, country, timezone, logo_url, created_at")
+    .limit(1)
+    .single();
   if (error) throw error;
   return data;
 });

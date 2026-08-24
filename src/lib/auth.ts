@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { parseAppRole, type AppRole } from "@/lib/roles";
 import type { User } from "@supabase/supabase-js";
@@ -62,6 +62,7 @@ export async function getOrgId() {
 }
 
 export function actionError(error: unknown, fallback = "Enregistrement impossible") {
+  unstable_rethrow(error);
   if (typeof error === "string" && error.trim()) return error;
   if (error instanceof Error && error.message) return error.message;
   return fallback;

@@ -346,10 +346,21 @@ export async function upsertGoalAction(input: unknown) {
   }
 }
 
+export async function updateOrganizationFormAction(
+  _prev: { error?: string; success?: boolean } | null,
+  formData: FormData,
+) {
+  return updateOrganizationAction({
+    name: String(formData.get("name") ?? ""),
+    phone: String(formData.get("phone") || "") || null,
+    address: String(formData.get("address") || "") || null,
+  });
+}
+
 export async function updateOrganizationAction(input: unknown) {
+  const parsed = organizationSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
   try {
-    const parsed = organizationSchema.safeParse(input);
-    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
     const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase
       .from("organizations")
@@ -358,8 +369,11 @@ export async function updateOrganizationAction(input: unknown) {
         phone: parsed.data.phone,
         address: parsed.data.address,
       })
-      .eq("id", orgId);
+      .eq("id", orgId)
+      .select("id")
+      .maybeSingle();
     if (error) return { error: error.message };
+    revalidatePath("/", "layout");
     revalidateMutation(["/settings"], false);
     return { success: true };
   } catch (error) {
@@ -370,8 +384,14 @@ export async function updateOrganizationAction(input: unknown) {
 export async function updateOrganizationLogoAction(url: string) {
   try {
     const { supabase, orgId } = await requireAdmin();
-    const { error } = await supabase.from("organizations").update({ logo_url: url }).eq("id", orgId);
+    const { error } = await supabase
+      .from("organizations")
+      .update({ logo_url: url })
+      .eq("id", orgId)
+      .select("id")
+      .maybeSingle();
     if (error) return { error: error.message };
+    revalidatePath("/", "layout");
     revalidateMutation(["/settings"], false);
     return { success: true };
   } catch (error) {

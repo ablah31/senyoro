@@ -1,11 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { upsertCategoryAction } from "@/lib/actions/expenses";
 import {
-  updateOrganizationAction,
+  updateOrganizationFormAction,
   updateOrganizationLogoAction,
 } from "@/lib/actions/admin";
 import { uploadHint, uploadToBucket } from "@/lib/client-upload";
@@ -34,24 +34,18 @@ export function SettingsForms({
   logs: { id: string; action: string; table_name: string; created_at: string }[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [orgState, orgFormAction, orgPending] = useActionState(updateOrganizationFormAction, null);
+
+  useEffect(() => {
+    if (orgState?.error) toast.error(orgState.error);
+    if (orgState?.success) toast.success("Paramètres enregistrés");
+  }, [orgState]);
 
   return (
     <div className="space-y-8">
       <form
+        action={orgFormAction}
         className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const form = new FormData(e.currentTarget);
-          startTransition(async () => {
-            const result = await updateOrganizationAction({
-              name: String(form.get("name")),
-              phone: String(form.get("phone") || "") || null,
-              address: String(form.get("address") || "") || null,
-            });
-            if (result.error) toast.error(result.error);
-            else toast.success("Paramètres enregistrés");
-          });
-        }}
       >
         <div className="space-y-2 md:col-span-2">
           <Label>Nom du centre</Label>
@@ -83,7 +77,7 @@ export function SettingsForms({
                 try {
                   const uploaded = await uploadToBucket("organization-logos", file);
                   const result = await updateOrganizationLogoAction(uploaded.publicUrl);
-                  if (result.error) toast.error(result.error);
+                  if (result?.error) toast.error(result.error);
                   else toast.success("Logo mis à jour");
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Import impossible");
@@ -93,7 +87,7 @@ export function SettingsForms({
           />
           <p className="text-xs text-muted-foreground">{uploadHint("organization-logos")}</p>
         </div>
-        <Button type="submit" className="h-11" disabled={pending}>
+        <Button type="submit" className="h-11" disabled={pending || orgPending}>
           Enregistrer
         </Button>
       </form>
