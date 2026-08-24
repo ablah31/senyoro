@@ -1,4 +1,4 @@
-import { getCashDay, getDashboardKpis, getEmployees, getExpenseCategories, getNamedSeries, getOrganization, getServices, getVehicleTypes, periodFromSearch, washIdsForFilter } from "@/lib/queries";
+import { getDashboardKpis, getEmployees, getExpenseCategories, getNamedSeries, getServices, getVehicleTypes, periodFromSearch, washIdsForFilter } from "@/lib/queries";
 import { requireClient } from "@/lib/auth";
 import { toIsoDate } from "@/lib/dates";
 import { formatGNF, toAmount } from "@/lib/format";
@@ -30,14 +30,13 @@ export default async function ReportsPage({
   const range = periodFromSearch(params);
   const from = toIsoDate(range.from);
   const to = toIsoDate(range.to);
-  const [categories, vehicleTypes, services, employees, supabase, filteredIds, org] = await Promise.all([
+  const [categories, vehicleTypes, services, employees, supabase, filteredIds] = await Promise.all([
     getExpenseCategories(),
     getVehicleTypes(),
     getServices(),
     getEmployees(),
     requireClient(),
     washIdsForFilter({ employeeId: params.employeeId, serviceId: params.serviceId }),
-    getOrganization(),
   ]);
 
   const hasWashFilter = Boolean(
@@ -118,9 +117,6 @@ export default async function ReportsPage({
     .select("id", { count: "exact", head: true })
     .eq("is_active", true);
 
-  const singleDay = from === to;
-  const cash = org.cash_enabled && singleDay ? await getCashDay(from) : null;
-
   const qs = toSearchString({
     from,
     to,
@@ -158,18 +154,6 @@ export default async function ReportsPage({
         <Stat title="Bénéfice estimé" value={formatGNF(kpis.profit)} />
         <Stat title="Employés actifs" value={String(activeEmployees ?? 0)} />
       </div>
-      {cash ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Caisse du jour</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-            <p>Espèces théoriques : <span className="tabular-amount">{formatGNF(cash.theoretical_cash)}</span></p>
-            <p>Mobile Money théorique : <span className="tabular-amount">{formatGNF(cash.theoretical_mobile)}</span></p>
-            <p>{cash.closed_at ? "Caisse clôturée" : "Caisse non clôturée"}</p>
-          </CardContent>
-        </Card>
-      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Prestations réalisées</CardTitle>

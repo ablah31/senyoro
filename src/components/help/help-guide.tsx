@@ -4,9 +4,9 @@ import { getHelpSteps, getHelpTopics } from "@/lib/help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function HelpGuide({ cashEnabled }: { cashEnabled: boolean }) {
-  const steps = getHelpSteps(cashEnabled);
-  const topics = getHelpTopics(cashEnabled);
+export function HelpGuide() {
+  const steps = getHelpSteps();
+  const topics = getHelpTopics();
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-8">

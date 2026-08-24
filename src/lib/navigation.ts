@@ -9,9 +9,9 @@ import {
   Receipt,
   Settings,
   Users,
-  Wallet,
   UserRound,
 } from "lucide-react";
+import type { AppRole } from "@/lib/roles";
 
 export interface NavItem {
   href: string;
@@ -24,7 +24,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/washes/new", label: "Nouveau lavage", icon: PlusCircle, match: "exact" },
   { href: "/washes", label: "Lavages", icon: Droplets, match: "exact" },
-  { href: "/cash", label: "Caisse", icon: Wallet },
   { href: "/expenses", label: "Dépenses", icon: Receipt },
   { href: "/employees", label: "Employés", icon: Users },
   { href: "/salaries", label: "Salaires", icon: Banknote },
@@ -38,18 +37,24 @@ export const NAV_ITEMS: NavItem[] = [
 export const MOBILE_PRIMARY: NavItem[] = [
   { href: "/washes/new", label: "Lavage", icon: PlusCircle, match: "exact" },
   { href: "/dashboard", label: "Synthèse", icon: LayoutDashboard },
-  { href: "/cash", label: "Caisse", icon: Wallet },
+  { href: "/customers", label: "Clients", icon: UserRound },
   { href: "/expenses", label: "Dépenses", icon: Receipt },
 ];
 
-export function getNavItems(cashEnabled: boolean) {
-  if (cashEnabled) return NAV_ITEMS;
-  return NAV_ITEMS.filter((item) => item.href !== "/cash");
+const RESPONSABLE_HREFS = new Set(["/dashboard", "/washes/new", "/washes"]);
+
+export const RESPONSABLE_MOBILE: NavItem[] = [
+  { href: "/washes/new", label: "Lavage", icon: PlusCircle, match: "exact" },
+  { href: "/dashboard", label: "Synthèse", icon: LayoutDashboard },
+  { href: "/washes", label: "Lavages", icon: Droplets, match: "exact" },
+];
+
+export function getNavItems(role: AppRole) {
+  if (role !== "responsable") return NAV_ITEMS;
+  return NAV_ITEMS.filter((item) => RESPONSABLE_HREFS.has(item.href));
 }
 
-export function getMobilePrimary(cashEnabled: boolean) {
-  if (cashEnabled) return MOBILE_PRIMARY;
-  return MOBILE_PRIMARY.map((item) =>
-    item.href === "/cash" ? { href: "/customers", label: "Clients", icon: UserRound } : item,
-  );
+export function getMobilePrimary(role: AppRole) {
+  if (role !== "responsable") return MOBILE_PRIMARY;
+  return RESPONSABLE_MOBILE;
 }

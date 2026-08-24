@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireClient } from "@/lib/auth";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/dates";
@@ -6,6 +7,7 @@ import { formatGNF } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { CancelWashButton } from "@/components/washes/cancel-wash-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function WashDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,7 +73,14 @@ export default async function WashDetailPage({ params }: { params: Promise<{ id:
           {wash.cancel_reason ? <p>Annulation : {wash.cancel_reason}</p> : null}
         </CardContent>
       </Card>
-      {wash.status === "active" ? <CancelWashButton id={wash.id} /> : null}
+      {wash.status === "active" ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button className="h-11" nativeButton={false} render={<Link href={`/washes/${wash.id}/edit`} />}>
+            Modifier
+          </Button>
+          <CancelWashButton id={wash.id} />
+        </div>
+      ) : null}
     </div>
   );
 }

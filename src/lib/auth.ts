@@ -1,14 +1,18 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseAppRole, type AppRole } from "@/lib/roles";
 import type { User } from "@supabase/supabase-js";
 
 type AppSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+export type { AppRole };
 
 export type ActionContext = {
   supabase: AppSupabaseClient;
   user: User;
   orgId: string;
+  role: AppRole;
 };
 
 export const getUser = cache(async () => {
@@ -39,11 +43,17 @@ export const requireActionContext = cache(async (): Promise<ActionContext> => {
   const supabase = await createClient();
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("organization_id")
+    .select("organization_id, role")
     .eq("id", user.id)
     .single();
   if (error || !profile) throw new Error("Organisation introuvable");
-  return { supabase, user, orgId: profile.organization_id };
+  return { supabase, user, orgId: profile.organization_id, role: parseAppRole(profile.role) };
+});
+
+export const requireAdmin = cache(async (): Promise<ActionContext> => {
+  const ctx = await requireActionContext();
+  if (ctx.role !== "admin") throw new Error("Accès refusé");
+  return ctx;
 });
 
 export async function getOrgId() {

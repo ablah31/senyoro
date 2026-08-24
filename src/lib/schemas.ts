@@ -89,6 +89,10 @@ export const expenseSchema = z.object({
   paymentMethod: z.enum(["cash", "mobile_money"]),
 });
 
+export const expenseUpdateSchema = expenseSchema.extend({
+  id: z.string().uuid(),
+});
+
 export const recurringExpenseSchema = z.object({
   categoryId: z.string().uuid(),
   description: z.string().min(2),
@@ -108,19 +112,6 @@ export const salaryPaymentSchema = z.object({
   comment: z.string().optional().nullable(),
 });
 
-export const cashOpenSchema = z.object({
-  businessDate: z.string().min(1),
-  openingCash: amountSchema,
-  openingMobileMoney: amountSchema,
-});
-
-export const cashCloseSchema = z.object({
-  sessionId: z.string().uuid(),
-  countedCash: amountSchema,
-  countedMobileMoney: amountSchema,
-  comment: z.string().optional().nullable(),
-});
-
 export const goalSchema = z.object({
   periodMonth: z.string().min(1),
   revenueTarget: amountSchema,
@@ -131,7 +122,6 @@ export const organizationSchema = z.object({
   name: z.string().min(2),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
-  defaultOpeningCash: amountSchema,
 });
 
 export const categorySchema = z.object({

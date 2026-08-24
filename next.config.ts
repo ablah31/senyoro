@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns", "recharts"],
   },
+  async redirects() {
+    return [{ source: "/cash", destination: "/dashboard", permanent: true }];
+  },
 };
 
 export default nextConfig;

@@ -28,7 +28,7 @@ const ENTITY_LABEL: Record<string, string> = {
   wash: "Lavages",
 };
 
-export function GlobalSearch() {
+export function GlobalSearch({ washesOnly = false }: { washesOnly?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -80,6 +80,11 @@ export function GlobalSearch() {
     return acc;
   }, {});
 
+  const placeholder = washesOnly ? "Plaque, client, téléphone…" : "Plaque, client, téléphone, employé…";
+  const description = washesOnly
+    ? "Plaques et transactions"
+    : "Plaques, clients, téléphones, employés et transactions";
+
   return (
     <>
       <button
@@ -89,7 +94,7 @@ export function GlobalSearch() {
         aria-label="Recherche globale"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1">Plaque, client, téléphone, employé…</span>
+        <span className="flex-1">{placeholder}</span>
         <kbd className="hidden rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline">
           ⌘K
         </kbd>
@@ -98,11 +103,11 @@ export function GlobalSearch() {
         open={open}
         onOpenChange={setOpen}
         title="Recherche"
-        description="Plaques, clients, téléphones, employés et transactions"
+        description={description}
       >
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Plaque, client, téléphone, employé…"
+            placeholder={placeholder}
             value={query}
             onValueChange={setQuery}
           />

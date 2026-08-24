@@ -1,15 +1,15 @@
 "use server";
 
-import { actionError, requireActionContext } from "@/lib/auth";
+import { actionError, requireAdmin } from "@/lib/auth";
 import { revalidateMutation } from "@/lib/actions/revalidate";
-import { categorySchema, expenseSchema, recurringExpenseSchema } from "@/lib/schemas";
+import { categorySchema, expenseSchema, expenseUpdateSchema, recurringExpenseSchema } from "@/lib/schemas";
 import { businessDate } from "@/lib/dates";
 
 export async function createExpenseAction(input: unknown) {
   try {
     const parsed = expenseSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, user, orgId } = await requireActionContext();
+    const { supabase, user, orgId } = await requireAdmin();
     const { data, error } = await supabase
       .from("expenses")
       .insert({
@@ -27,8 +27,44 @@ export async function createExpenseAction(input: unknown) {
       .select("id")
       .single();
     if (error) return { error: error.message };
-    revalidateMutation(["/expenses", "/cash", "/dashboard"]);
+    revalidateMutation(["/expenses", "/dashboard"]);
     return { success: true, id: data.id };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateExpenseAction(input: unknown) {
+  try {
+    const parsed = expenseUpdateSchema.safeParse(input);
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
+    const { supabase } = await requireAdmin();
+    const { data: existing, error: loadError } = await supabase
+      .from("expenses")
+      .select("id, status, salary_payment_id")
+      .eq("id", parsed.data.id)
+      .maybeSingle();
+    if (loadError) return { error: loadError.message };
+    if (!existing) return { error: "Dépense introuvable" };
+    if (existing.status !== "active") return { error: "Une dépense annulée ne peut pas être modifiée" };
+    if (existing.salary_payment_id) {
+      return { error: "Ce versement de salaire se corrige dans Salaires." };
+    }
+    const { error } = await supabase
+      .from("expenses")
+      .update({
+        amount: parsed.data.amount,
+        date: parsed.data.date,
+        category_id: parsed.data.categoryId,
+        nature: parsed.data.nature,
+        description: parsed.data.description,
+        supplier: parsed.data.supplier,
+        payment_method: parsed.data.paymentMethod,
+      })
+      .eq("id", parsed.data.id);
+    if (error) return { error: error.message };
+    revalidateMutation([`/expenses/${parsed.data.id}`, "/expenses", "/dashboard"]);
+    return { success: true, id: parsed.data.id };
   } catch (error) {
     return { error: actionError(error) };
   }
@@ -37,13 +73,13 @@ export async function createExpenseAction(input: unknown) {
 export async function cancelExpenseAction(id: string, reason: string) {
   try {
     if (!reason.trim()) return { error: "Motif d'annulation requis" };
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { error } = await supabase
       .from("expenses")
       .update({ status: "cancelled", cancel_reason: reason.trim() })
       .eq("id", id);
     if (error) return { error: error.message };
-    revalidateMutation(["/expenses", "/cash", "/dashboard"]);
+    revalidateMutation([`/expenses/${id}`, "/expenses", "/dashboard"]);
     return { success: true };
   } catch (error) {
     return { error: actionError(error) };
@@ -54,7 +90,7 @@ export async function upsertCategoryAction(input: unknown) {
   try {
     const parsed = categorySchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     if (parsed.data.id) {
       const { error } = await supabase
         .from("expense_categories")
@@ -78,7 +114,7 @@ export async function upsertCategoryAction(input: unknown) {
 
 export async function deleteCategoryAction(id: string) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { count } = await supabase
       .from("expenses")
       .select("id", { count: "exact", head: true })
@@ -97,7 +133,7 @@ export async function createRecurringExpenseAction(input: unknown) {
   try {
     const parsed = recurringExpenseSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase.from("recurring_expenses").insert({
       organization_id: orgId,
       category_id: parsed.data.categoryId,
@@ -121,7 +157,7 @@ export async function createRecurringExpenseAction(input: unknown) {
 
 export async function generateOccurrencesAction() {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     await supabase.rpc("generate_recurring_occurrences");
     revalidateMutation(["/expenses/recurring"], false);
     return { success: true };
@@ -132,7 +168,7 @@ export async function generateOccurrencesAction() {
 
 export async function confirmOccurrenceAction(occurrenceId: string) {
   try {
-    const { supabase, user, orgId } = await requireActionContext();
+    const { supabase, user, orgId } = await requireAdmin();
     const { data: occurrence, error } = await supabase
       .from("recurring_expense_occurrences")
       .select("*, recurring_expenses(*)")
@@ -171,7 +207,7 @@ export async function confirmOccurrenceAction(occurrenceId: string) {
       .update({ status: "confirmed", expense_id: expense.id })
       .eq("id", occurrenceId);
 
-    revalidateMutation(["/expenses", "/expenses/recurring", "/cash", "/dashboard"]);
+    revalidateMutation(["/expenses", "/expenses/recurring", "/dashboard"]);
     return { success: true };
   } catch (error) {
     return { error: actionError(error) };
@@ -180,7 +216,7 @@ export async function confirmOccurrenceAction(occurrenceId: string) {
 
 export async function skipOccurrenceAction(occurrenceId: string) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { error } = await supabase
       .from("recurring_expense_occurrences")
       .update({ status: "skipped" })
@@ -195,7 +231,7 @@ export async function skipOccurrenceAction(occurrenceId: string) {
 
 export async function attachReceiptAction(expenseId: string, path: string, fileName: string, mimeType: string) {
   try {
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase.from("attachments").insert({
       organization_id: orgId,
       expense_id: expenseId,
@@ -204,7 +240,7 @@ export async function attachReceiptAction(expenseId: string, path: string, fileN
       mime_type: mimeType,
     });
     if (error) return { error: error.message };
-    revalidateMutation(["/expenses"], false);
+    revalidateMutation([`/expenses/${expenseId}`, "/expenses"], false);
     return { success: true };
   } catch (error) {
     return { error: actionError(error) };
@@ -213,7 +249,7 @@ export async function attachReceiptAction(expenseId: string, path: string, fileN
 
 export async function getReceiptUrlAction(path: string) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { data, error } = await supabase.storage.from("expense-receipts").createSignedUrl(path, 300);
     if (error) return { error: error.message };
     return { url: data.signedUrl };

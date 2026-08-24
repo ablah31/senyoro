@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
-import { requireUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -27,7 +26,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ resource: string }> },
 ) {
-  await requireUser();
+  let supabase;
+  try {
+    ({ supabase } = await requireAdmin());
+  } catch (error) {
+    if (error instanceof Error && error.message === "Accès refusé") {
+      return new Response("Accès refusé", { status: 403 });
+    }
+    throw error;
+  }
   const { resource } = await params;
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");
@@ -39,7 +46,6 @@ export async function GET(
   const paymentMethod = searchParams.get("paymentMethod");
   const categoryId = searchParams.get("categoryId");
   const nature = searchParams.get("nature");
-  const supabase = await createClient();
 
   let rows: Record<string, unknown>[] = [];
 

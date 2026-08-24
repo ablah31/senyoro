@@ -91,13 +91,6 @@ export async function getEmployeeRanking(from: Date, to: Date) {
   return data ?? [];
 }
 
-export async function getCashDay(date: string) {
-  const supabase = await requireClient();
-  const { data, error } = await supabase.rpc("cash_day_summary", { p_date: date });
-  if (error) throw error;
-  return data?.[0] ?? null;
-}
-
 export async function searchGlobal(query: string) {
   const supabase = await requireClient();
   const { data, error } = await supabase.rpc("global_search", { p_query: query });

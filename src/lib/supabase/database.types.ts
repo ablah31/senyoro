@@ -103,53 +103,6 @@ export type Database = {
           },
         ]
       }
-      cash_sessions: {
-        Row: {
-          business_date: string
-          closed_at: string | null
-          comment: string | null
-          counted_cash: number | null
-          counted_mobile_money: number | null
-          created_at: string
-          id: string
-          opening_cash: number
-          opening_mobile_money: number
-          organization_id: string
-        }
-        Insert: {
-          business_date: string
-          closed_at?: string | null
-          comment?: string | null
-          counted_cash?: number | null
-          counted_mobile_money?: number | null
-          created_at?: string
-          id?: string
-          opening_cash?: number
-          opening_mobile_money?: number
-          organization_id: string
-        }
-        Update: {
-          business_date?: string
-          closed_at?: string | null
-          comment?: string | null
-          counted_cash?: number | null
-          counted_mobile_money?: number | null
-          created_at?: string
-          id?: string
-          opening_cash?: number
-          opening_mobile_money?: number
-          organization_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cash_sessions_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       customers: {
         Row: {
           created_at: string
@@ -446,11 +399,9 @@ export type Database = {
       organizations: {
         Row: {
           address: string | null
-          cash_enabled: boolean
           country: string
           created_at: string
           currency: string
-          default_opening_cash: number
           id: string
           logo_url: string | null
           name: string
@@ -459,11 +410,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          cash_enabled?: boolean
           country?: string
           created_at?: string
           currency?: string
-          default_opening_cash?: number
           id?: string
           logo_url?: string | null
           name: string
@@ -472,11 +421,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          cash_enabled?: boolean
           country?: string
           created_at?: string
           currency?: string
-          default_opening_cash?: number
           id?: string
           logo_url?: string | null
           name?: string
@@ -1085,27 +1032,9 @@ export type Database = {
         }
         Returns: string
       }
-      cash_day_summary: {
-        Args: { p_date: string }
-        Returns: {
-          cash_diff: number
-          cash_in: number
-          cash_out: number
-          closed_at: string
-          comment: string
-          counted_cash: number
-          counted_mobile_money: number
-          mobile_diff: number
-          mobile_in: number
-          mobile_out: number
-          opening_cash: number
-          opening_mobile_money: number
-          session_id: string
-          theoretical_cash: number
-          theoretical_mobile: number
-        }[]
-      }
       current_org_id: { Args: never; Returns: string }
+      current_user_role: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       dashboard_kpis: {
         Args: { p_from: string; p_to: string }
         Returns: {

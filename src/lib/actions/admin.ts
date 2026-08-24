@@ -2,12 +2,9 @@
 
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
-import { actionError, requireActionContext } from "@/lib/auth";
+import { actionError, requireAdmin } from "@/lib/auth";
 import { revalidateMutation } from "@/lib/actions/revalidate";
-import { CASH_DISABLED_MESSAGE } from "@/lib/constants";
 import {
-  cashCloseSchema,
-  cashOpenSchema,
   employeeSchema,
   goalSchema,
   organizationSchema,
@@ -18,18 +15,6 @@ import {
   serviceGlobalPriceSchema,
   vehicleTypeSchema,
 } from "@/lib/schemas";
-
-async function requireCashEnabled() {
-  const { supabase, orgId } = await requireActionContext();
-  const { data, error } = await supabase
-    .from("organizations")
-    .select("cash_enabled")
-    .eq("id", orgId)
-    .single();
-  if (error) return { error: error.message, supabase, orgId };
-  if (!data?.cash_enabled) return { error: CASH_DISABLED_MESSAGE, supabase, orgId };
-  return { error: null, supabase, orgId };
-}
 
 function toSlug(value: string) {
   const slug = value
@@ -49,7 +34,7 @@ export async function upsertServiceAction(input: unknown) {
   try {
     const parsed = serviceSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     let serviceId = parsed.data.id;
     if (serviceId) {
       const { error } = await supabase
@@ -100,7 +85,7 @@ export async function updateServicePriceAction(input: unknown) {
   try {
     const parsed = servicePriceSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase.from("service_prices").upsert(
       {
         organization_id: orgId,
@@ -124,7 +109,7 @@ export async function updateServiceGlobalPriceAction(input: unknown) {
   try {
     const parsed = serviceGlobalPriceSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error: serviceError } = await supabase
       .from("services")
       .update({ reference_price: parsed.data.price })
@@ -163,7 +148,7 @@ export async function updateServiceNameAction(input: unknown) {
   try {
     const parsed = serviceNameSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { error } = await supabase.from("services").update({ name: parsed.data.name }).eq("id", parsed.data.id);
     if (error) return { error: error.message };
     after(() => {
@@ -177,7 +162,7 @@ export async function updateServiceNameAction(input: unknown) {
 
 export async function toggleServiceAction(id: string, isActive: boolean) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { error } = await supabase.from("services").update({ is_active: isActive }).eq("id", id);
     if (error) return { error: error.message };
     revalidateMutation(["/services", "/washes/new"], false);
@@ -189,7 +174,7 @@ export async function toggleServiceAction(id: string, isActive: boolean) {
 
 export async function deleteServiceAction(id: string) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { count } = await supabase
       .from("wash_services")
       .select("id", { count: "exact", head: true })
@@ -210,7 +195,7 @@ export async function upsertVehicleTypeAction(input: unknown) {
   try {
     const parsed = vehicleTypeSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const name = parsed.data.name;
     if (parsed.data.id) {
       const { error } = await supabase.from("vehicle_types").update({ name }).eq("id", parsed.data.id);
@@ -272,7 +257,7 @@ export async function upsertEmployeeAction(input: unknown) {
   try {
     const parsed = employeeSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const payload = {
       first_name: parsed.data.firstName,
       last_name: parsed.data.lastName,
@@ -302,7 +287,7 @@ export async function upsertEmployeeAction(input: unknown) {
 
 export async function toggleEmployeeAction(id: string, isActive: boolean) {
   try {
-    const { supabase } = await requireActionContext();
+    const { supabase } = await requireAdmin();
     const { error } = await supabase.from("employees").update({ is_active: isActive }).eq("id", id);
     if (error) return { error: error.message };
     revalidateMutation(["/employees"], false);
@@ -316,7 +301,7 @@ export async function upsertSalaryPaymentAction(input: unknown) {
   try {
     const parsed = salaryPaymentSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const month = parsed.data.periodMonth.slice(0, 7) + "-01";
     const { error } = await supabase.from("salary_payments").upsert(
       {
@@ -338,57 +323,11 @@ export async function upsertSalaryPaymentAction(input: unknown) {
   }
 }
 
-export async function openCashAction(input: unknown) {
-  try {
-    const parsed = cashOpenSchema.safeParse(input);
-    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { error: cashError, supabase, orgId } = await requireCashEnabled();
-    if (cashError) return { error: cashError };
-    const { error } = await supabase.from("cash_sessions").upsert(
-      {
-        organization_id: orgId,
-        business_date: parsed.data.businessDate,
-        opening_cash: parsed.data.openingCash,
-        opening_mobile_money: parsed.data.openingMobileMoney,
-      },
-      { onConflict: "organization_id,business_date" },
-    );
-    if (error) return { error: error.message };
-    revalidateMutation(["/cash"], false);
-    return { success: true };
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-}
-
-export async function closeCashAction(input: unknown) {
-  try {
-    const parsed = cashCloseSchema.safeParse(input);
-    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { error: cashError, supabase } = await requireCashEnabled();
-    if (cashError) return { error: cashError };
-    const { error } = await supabase
-      .from("cash_sessions")
-      .update({
-        counted_cash: parsed.data.countedCash,
-        counted_mobile_money: parsed.data.countedMobileMoney,
-        comment: parsed.data.comment,
-        closed_at: new Date().toISOString(),
-      })
-      .eq("id", parsed.data.sessionId);
-    if (error) return { error: error.message };
-    revalidateMutation(["/cash"], false);
-    return { success: true };
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-}
-
 export async function upsertGoalAction(input: unknown) {
   try {
     const parsed = goalSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const month = parsed.data.periodMonth.slice(0, 7) + "-01";
     const { error } = await supabase.from("financial_goals").upsert(
       {
@@ -411,14 +350,13 @@ export async function updateOrganizationAction(input: unknown) {
   try {
     const parsed = organizationSchema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase
       .from("organizations")
       .update({
         name: parsed.data.name,
         phone: parsed.data.phone,
         address: parsed.data.address,
-        default_opening_cash: parsed.data.defaultOpeningCash,
       })
       .eq("id", orgId);
     if (error) return { error: error.message };
@@ -429,23 +367,9 @@ export async function updateOrganizationAction(input: unknown) {
   }
 }
 
-export async function updateCashEnabledAction(enabled: boolean) {
-  try {
-    if (typeof enabled !== "boolean") return { error: "Données invalides" };
-    const { supabase, orgId } = await requireActionContext();
-    const { error } = await supabase.from("organizations").update({ cash_enabled: enabled }).eq("id", orgId);
-    if (error) return { error: error.message };
-    revalidatePath("/", "layout");
-    revalidateMutation(["/settings", "/cash", "/reports"], false);
-    return { success: true };
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-}
-
 export async function updateOrganizationLogoAction(url: string) {
   try {
-    const { supabase, orgId } = await requireActionContext();
+    const { supabase, orgId } = await requireAdmin();
     const { error } = await supabase.from("organizations").update({ logo_url: url }).eq("id", orgId);
     if (error) return { error: error.message };
     revalidateMutation(["/settings"], false);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/lib/actions/auth";
 import { getMobilePrimary, getNavItems } from "@/lib/navigation";
+import type { AppRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CircleHelp, LogOut, Menu } from "lucide-react";
@@ -20,16 +21,17 @@ function isActive(pathname: string, href: string, match?: "exact" | "prefix") {
 export function AppShell({
   children,
   orgName,
-  cashEnabled,
+  role,
 }: {
   children: React.ReactNode;
   orgName: string;
-  cashEnabled: boolean;
+  role: AppRole;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const navItems = getNavItems(cashEnabled);
-  const mobileItems = getMobilePrimary(cashEnabled);
+  const navItems = getNavItems(role);
+  const mobileItems = getMobilePrimary(role);
+  const isResponsable = role === "responsable";
 
   return (
     <div className="min-h-dvh bg-background">
@@ -107,25 +109,27 @@ export function AppShell({
             </SheetContent>
           </Sheet>
           <div className="min-w-0 flex-1">
-            <GlobalSearch />
+            <GlobalSearch washesOnly={isResponsable} />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn("size-11 shrink-0", isActive(pathname, "/help") && "text-primary")}
-            nativeButton={false}
-            aria-label="Aide"
-            title="Aide"
-            render={<Link href="/help" />}
-          >
-            <CircleHelp />
-          </Button>
+          {isResponsable ? null : (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-11 shrink-0", isActive(pathname, "/help") && "text-primary")}
+              nativeButton={false}
+              aria-label="Aide"
+              title="Aide"
+              render={<Link href="/help" />}
+            >
+              <CircleHelp />
+            </Button>
+          )}
         </header>
         <main className="min-w-0 overflow-x-hidden px-4 py-4 pb-24 lg:px-8 lg:py-6 lg:pb-8">{children}</main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur lg:hidden">
-        <ul className="grid grid-cols-4">
+        <ul className={cn("grid", mobileItems.length === 3 ? "grid-cols-3" : "grid-cols-4")}>
           {mobileItems.map((item) => {
             const active = isActive(pathname, item.href, item.match);
             const Icon = item.icon;

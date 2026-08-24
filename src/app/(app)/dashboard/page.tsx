@@ -7,7 +7,7 @@ import {
   getTimeseries,
   periodFromSearch,
 } from "@/lib/queries";
-import { requireClient } from "@/lib/auth";
+import { requireActionContext, requireClient } from "@/lib/auth";
 import { monthStart, toIsoDate } from "@/lib/dates";
 import { PageHeader } from "@/components/shared/page-header";
 import { PeriodSelector } from "@/components/shared/period-selector";
@@ -23,8 +23,38 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
-  const params = await searchParams;
+  const [params, { role }] = await Promise.all([searchParams, requireActionContext()]);
   const range = periodFromSearch(params);
+
+  if (role === "responsable") {
+    const [current, previous] = await Promise.all([
+      getDashboardKpis(range.from, range.to),
+      getDashboardKpis(range.previousFrom, range.previousTo),
+    ]);
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Tableau de bord" description={range.label}>
+          <Button className="h-11" nativeButton={false} render={<Link href="/washes/new" />}>
+            Nouveau lavage
+          </Button>
+        </PageHeader>
+        <PeriodSelector />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <KpiCard
+            label="Véhicules lavés"
+            value={current.washCount}
+            previous={previous.washCount}
+            isAmount={false}
+          />
+          <KpiCard label="Chiffre d'affaires" value={current.revenue} previous={previous.revenue} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Période du {toIsoDate(range.from)} au {toIsoDate(range.to)}
+        </p>
+      </div>
+    );
+  }
+
   const [
     current,
     previous,

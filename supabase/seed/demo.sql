@@ -79,9 +79,6 @@ BEGIN
 
   FOR i IN 0..20 LOOP
     d := CURRENT_DATE - i;
-    INSERT INTO public.cash_sessions (organization_id, business_date, opening_cash, opening_mobile_money)
-    VALUES (org, d, 300000, 0)
-    ON CONFLICT (organization_id, business_date) DO NOTHING;
 
     INSERT INTO public.washes (
       organization_id, occurred_at, business_date, vehicle_type_id, plate, customer_id, vehicle_id,

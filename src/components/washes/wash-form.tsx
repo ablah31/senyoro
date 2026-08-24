@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createWashAction, lookupCustomerAction, lookupPlateAction } from "@/lib/actions/washes";
+import { createWashAction, lookupCustomerAction, lookupPlateAction, updateWashAction } from "@/lib/actions/washes";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatGNF, toAmount } from "@/lib/format";
 import { priceForVehicle } from "@/lib/service-price";
@@ -36,6 +36,22 @@ type CustomerMatch = {
   vehicles: { plate: string; vehicle_type_id: string | null }[];
 };
 
+export type WashFormValues = {
+  id: string;
+  vehicleTypeId: string;
+  plate: string;
+  serviceIds: string[];
+  employeeIds: string[];
+  paymentMethod: "cash" | "mobile_money";
+  finalAmount: number;
+  discountReason: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
+  note: string | null;
+  occurredAt: string;
+};
+
 function FormSection({
   title,
   children,
@@ -57,26 +73,29 @@ export function WashForm({
   vehicleTypes,
   services,
   employees,
+  wash,
 }: {
   vehicleTypes: VehicleType[];
   services: Service[];
   employees: Employee[];
+  wash?: WashFormValues;
 }) {
   const router = useRouter();
+  const isEdit = Boolean(wash);
   const [pending, startTransition] = useTransition();
-  const [vehicleTypeId, setVehicleTypeId] = useState(vehicleTypes[0]?.id ?? "");
-  const [plate, setPlate] = useState("");
+  const [vehicleTypeId, setVehicleTypeId] = useState(wash?.vehicleTypeId ?? vehicleTypes[0]?.id ?? "");
+  const [plate, setPlate] = useState(wash?.plate ?? "");
   const [matches, setMatches] = useState<PlateMatch[]>([]);
   const [customerMatches, setCustomerMatches] = useState<CustomerMatch[]>([]);
-  const [serviceIds, setServiceIds] = useState<string[]>([]);
-  const [employeeIds, setEmployeeIds] = useState<string[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money">("cash");
-  const [finalAmount, setFinalAmount] = useState<number | null>(null);
-  const [discountReason, setDiscountReason] = useState<string>("");
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [note, setNote] = useState("");
+  const [serviceIds, setServiceIds] = useState<string[]>(wash?.serviceIds ?? []);
+  const [employeeIds, setEmployeeIds] = useState<string[]>(wash?.employeeIds ?? []);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money">(wash?.paymentMethod ?? "cash");
+  const [finalAmount, setFinalAmount] = useState<number | null>(wash ? wash.finalAmount : null);
+  const [discountReason, setDiscountReason] = useState(wash?.discountReason ?? "");
+  const [customerId, setCustomerId] = useState<string | null>(wash?.customerId ?? null);
+  const [customerName, setCustomerName] = useState(wash?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(wash?.customerPhone ?? "");
+  const [note, setNote] = useState(wash?.note ?? "");
   const [done, setDone] = useState<{ id: string } | null>(null);
   const plateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -197,7 +216,7 @@ export function WashForm({
 
     startTransition(async () => {
       try {
-        const result = await createWashAction({
+        const payload = {
           vehicleTypeId,
           plate,
           serviceIds,
@@ -210,12 +229,22 @@ export function WashForm({
           customerName: customerName || null,
           customerPhone: customerPhone || null,
           note: note || null,
-        });
+        };
+        const result = wash
+          ? await updateWashAction({ ...payload, id: wash.id })
+          : await createWashAction(payload);
         if ("error" in result && result.error) {
           toast.error(result.error);
           return;
         }
         if ("id" in result && result.id) {
+          if (wash) {
+            toast.success("Lavage mis à jour");
+            setTimeout(() => {
+              router.push(`/washes/${result.id}`);
+            }, 0);
+            return;
+          }
           toast.success("Lavage enregistré avec succès");
           setDone({ id: result.id });
         } else {
@@ -246,7 +275,7 @@ export function WashForm({
   return (
     <div className="min-w-0 space-y-4">
       <p className="text-sm text-muted-foreground">
-        Date et heure : {formatDateTime(new Date())} (Guinée)
+        Date et heure : {formatDateTime(wash ? new Date(wash.occurredAt) : new Date())} (Guinée)
       </p>
 
       <FormSection title="Type de véhicule">
@@ -310,7 +339,7 @@ export function WashForm({
       <FormSection title="Prestations">
         <div className="space-y-2">
           {services
-            .filter((s) => s.is_active)
+            .filter((s) => s.is_active || serviceIds.includes(s.id))
             .map((service) => {
               const price = priceForVehicle(service, vehicleTypeId);
               const selected = serviceIds.includes(service.id);
@@ -338,7 +367,7 @@ export function WashForm({
       <FormSection title="Employés">
         <div className="flex flex-wrap gap-2">
           {employees
-            .filter((e) => e.is_active)
+            .filter((e) => e.is_active || employeeIds.includes(e.id))
             .map((employee) => {
               const selected = employeeIds.includes(employee.id);
               return (
@@ -468,7 +497,7 @@ export function WashForm({
       </FormSection>
 
       <Button className="h-12 w-full text-base" onClick={submit} disabled={pending}>
-        {pending ? "Enregistrement…" : `Encaisser ${formatGNF(amount)}`}
+        {pending ? "Enregistrement…" : isEdit ? `Enregistrer ${formatGNF(amount)}` : `Encaisser ${formatGNF(amount)}`}
       </Button>
     </div>
   );

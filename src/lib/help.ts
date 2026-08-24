@@ -34,22 +34,12 @@ const DASHBOARD_STEP: HelpStep = {
   action: "Tableau de bord",
 };
 
-const CASH_STEP: HelpStep = {
-  title: "En fin de journée",
-  detail: "Comptez les Espèces et le Mobile Money, puis comparez avec le théorique. La clôture n'est pas obligatoire.",
-  href: "/cash",
-  action: "Caisse",
-};
-
-export function getHelpSteps(cashEnabled: boolean): HelpStep[] {
-  if (cashEnabled) {
-    return [WASH_STEP, EXPENSE_STEP, DASHBOARD_STEP, CASH_STEP];
-  }
+export function getHelpSteps(): HelpStep[] {
   return [WASH_STEP, EXPENSE_STEP, DASHBOARD_STEP];
 }
 
-export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
-  const topics: HelpTopic[] = [
+export function getHelpTopics(): HelpTopic[] {
+  return [
     {
       id: "start",
       question: "Par où commencer ?",
@@ -57,9 +47,6 @@ export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
         "Créez d'abord les prestations et leurs prix, sur la même page.",
         "Ajoutez les employés.",
         "Ensuite, enregistrez le premier lavage.",
-        cashEnabled
-          ? "Le suivi de caisse se règle dans Paramètres, à Système de caisse."
-          : "Si vous voulez compter le tiroir, activez Système de caisse dans Paramètres.",
       ],
       href: "/services",
       action: "Prestations",
@@ -92,31 +79,14 @@ export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
       id: "expense",
       question: "Comment noter une dépense ?",
       points: [
-        "Ouvrez Dépenses. Indiquez le montant, la date et la catégorie.",
-        "Choisissez Espèces ou Mobile Money, comme le paiement réel.",
-        "Pour un loyer, ouvrez Récurrentes.",
-        "Pour un salaire, ouvrez Salaires. Ne le notez pas aussi dans Dépenses.",
+        "Ouvrez Dépenses, puis Nouvelle dépense.",
+        "Indiquez le montant, le paiement, la catégorie et une courte description.",
+        "Pour corriger, touchez la dépense dans la liste.",
+        "Pour un loyer, ouvrez Récurrentes. Pour un salaire, ouvrez Salaires.",
       ],
       href: "/expenses",
       action: "Dépenses",
     },
-  ];
-
-  if (cashEnabled) {
-    topics.push({
-      id: "cash",
-      question: "À quoi sert la caisse ?",
-      points: [
-        "Elle compare ce que vous devriez avoir et ce que vous comptez vraiment.",
-        "Les Espèces et le Mobile Money sont suivis séparément.",
-        "Vous pouvez l'éteindre dans Paramètres, à Système de caisse.",
-      ],
-      href: "/cash",
-      action: "Ouvrir la caisse",
-    });
-  }
-
-  topics.push(
     {
       id: "mistake",
       question: "J'ai fait une erreur. Que faire ?",
@@ -137,7 +107,5 @@ export function getHelpTopics(cashEnabled: boolean): HelpTopic[] {
         "Sur ordinateur, Ctrl+K (ou Cmd+K) ouvre aussi la recherche.",
       ],
     },
-  );
-
-  return topics;
+  ];
 }

@@ -31,13 +31,13 @@ Les migrations versionnées sont dans `supabase/migrations/`. Elles ont été ap
 
 Seed de démonstration (idempotent) :
 
-- `supabase/seed/demo.sql` — employés, clients, lavages, caisse, dépenses, salaires, objectif
+- `supabase/seed/demo.sql` — employés, clients, lavages, dépenses, salaires, objectif
 - `supabase/seed/reset_demo.sql` — retire uniquement les données taguées demo
 
 ## Parcours principaux
 
 - Tableau de bord (7 KPI, graphiques, objectifs, classement)
-- Nouveau lavage, historique, caisse espèces / Mobile Money
+- Nouveau lavage, historique, paiements Espèces / Mobile Money
 - Dépenses, récurrentes, salaires
 - Employés, clients, prestations
 - Rapports et exports CSV / Excel
