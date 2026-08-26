@@ -25,6 +25,11 @@ export const washSchema = z
     customerName: z.string().optional().nullable(),
     customerPhone: z.string().optional().nullable(),
     note: z.string().optional().nullable(),
+    businessDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide")
+      .optional()
+      .nullable(),
   })
   .refine((data) => data.theoreticalAmount === data.finalAmount || data.discountReason, {
     message: "Indiquez le motif de la différence de prix",

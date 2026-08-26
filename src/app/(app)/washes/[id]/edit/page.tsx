@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireClient } from "@/lib/auth";
-import { getEmployees, getServices, getVehicleTypes } from "@/lib/queries";
+import { getCustomersForLookup, getEmployees, getServices, getVehicleTypes } from "@/lib/queries";
 import { toAmount } from "@/lib/format";
 import { PageHeader } from "@/components/shared/page-header";
 import { WashForm } from "@/components/washes/wash-form";
@@ -10,10 +10,11 @@ export const metadata = { title: "Modifier le lavage" };
 export default async function EditWashPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await requireClient();
-  const [vehicleTypes, services, employees, washResult] = await Promise.all([
+  const [vehicleTypes, services, employees, customers, washResult] = await Promise.all([
     getVehicleTypes(),
     getServices(),
     getEmployees(),
+    getCustomersForLookup(),
     supabase.from("washes").select("*, wash_services(service_id), wash_employees(employee_id)").eq("id", id).maybeSingle(),
   ]);
   const wash = washResult.data;
@@ -33,6 +34,7 @@ export default async function EditWashPage({ params }: { params: Promise<{ id: s
         vehicleTypes={vehicleTypes}
         services={services}
         employees={employees}
+        customers={customers}
         wash={{
           id: wash.id,
           vehicleTypeId: wash.vehicle_type_id ?? vehicleTypes[0]?.id ?? "",

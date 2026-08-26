@@ -118,6 +118,17 @@ export async function getVehicleTypes() {
   return data ?? [];
 }
 
+export async function getCustomersForLookup() {
+  const supabase = await requireClient();
+  const { data, error } = await supabase
+    .from("customers")
+    .select("id, name, phone")
+    .order("name")
+    .limit(3000);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getEmployees(activeOnly = false) {
   const supabase = await requireClient();
   let query = supabase

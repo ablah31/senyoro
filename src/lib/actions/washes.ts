@@ -2,7 +2,7 @@
 
 import { actionError, requireActionContext, type ActionContext } from "@/lib/auth";
 import { revalidateMutation } from "@/lib/actions/revalidate";
-import { businessDate } from "@/lib/dates";
+import { businessDate, nowInConakry, toUtcFromBusinessDate } from "@/lib/dates";
 import { washSchema } from "@/lib/schemas";
 import { toAmount } from "@/lib/format";
 import type { AppRole } from "@/lib/roles";
@@ -194,7 +194,16 @@ export async function createWashAction(input: unknown) {
     const data = parsed.data;
     const { supabase, user, orgId, role }: ActionContext = await requireActionContext();
     assertCanManageWashes(role);
-    const date = businessDate();
+    const today = businessDate();
+    const date = data.businessDate ?? today;
+    if (date > today) {
+      return { error: "La date du lavage ne peut pas être dans le futur" };
+    }
+    const now = nowInConakry();
+    const occurredAt =
+      date === today
+        ? new Date().toISOString()
+        : toUtcFromBusinessDate(date, now.getHours(), now.getMinutes());
 
     const [resolved, catalogLoaded] = await Promise.all([
       resolveCustomerAndVehicle(supabase, orgId, {
@@ -216,7 +225,7 @@ export async function createWashAction(input: unknown) {
       .from("washes")
       .insert({
         organization_id: orgId,
-        occurred_at: new Date().toISOString(),
+        occurred_at: occurredAt,
         business_date: date,
         vehicle_type_id: data.vehicleTypeId,
         plate,

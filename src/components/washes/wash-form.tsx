@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createWashAction, lookupCustomerAction, lookupPlateAction, updateWashAction } from "@/lib/actions/washes";
+import { createWashAction, lookupPlateAction, updateWashAction } from "@/lib/actions/washes";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatGNF, toAmount } from "@/lib/format";
 import { priceForVehicle } from "@/lib/service-price";
-import { formatDateTime } from "@/lib/dates";
+import { businessDate, formatDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,31 @@ type PlateMatch = {
   customer_id: string | null;
   customers: { name: string | null; phone: string | null } | null;
 };
-type CustomerMatch = {
+export type CustomerMatch = {
   id: string;
   name: string | null;
   phone: string | null;
-  vehicles: { plate: string; vehicle_type_id: string | null }[];
+  vehicles?: { plate: string; vehicle_type_id: string | null }[];
 };
+
+function filterCustomerMatches(customers: CustomerMatch[], query: string) {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const digits = q.replace(/\D/g, "");
+  const isPhoneQuery = digits.length >= 2;
+  const needle = q.toLowerCase();
+  const matches: CustomerMatch[] = [];
+  for (const customer of customers) {
+    if (matches.length >= 8) break;
+    if (isPhoneQuery) {
+      const phone = (customer.phone ?? "").replace(/\D/g, "");
+      if (phone.includes(digits)) matches.push(customer);
+    } else if ((customer.name ?? "").toLowerCase().includes(needle)) {
+      matches.push(customer);
+    }
+  }
+  return matches;
+}
 
 export type WashFormValues = {
   id: string;
@@ -73,11 +92,13 @@ export function WashForm({
   vehicleTypes,
   services,
   employees,
+  customers = [],
   wash,
 }: {
   vehicleTypes: VehicleType[];
   services: Service[];
   employees: Employee[];
+  customers?: CustomerMatch[];
   wash?: WashFormValues;
 }) {
   const router = useRouter();
@@ -86,7 +107,6 @@ export function WashForm({
   const [vehicleTypeId, setVehicleTypeId] = useState(wash?.vehicleTypeId ?? vehicleTypes[0]?.id ?? "");
   const [plate, setPlate] = useState(wash?.plate ?? "");
   const [matches, setMatches] = useState<PlateMatch[]>([]);
-  const [customerMatches, setCustomerMatches] = useState<CustomerMatch[]>([]);
   const [serviceIds, setServiceIds] = useState<string[]>(wash?.serviceIds ?? []);
   const [employeeIds, setEmployeeIds] = useState<string[]>(wash?.employeeIds ?? []);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money">(wash?.paymentMethod ?? "cash");
@@ -95,17 +115,16 @@ export function WashForm({
   const [customerId, setCustomerId] = useState<string | null>(wash?.customerId ?? null);
   const [customerName, setCustomerName] = useState(wash?.customerName ?? "");
   const [customerPhone, setCustomerPhone] = useState(wash?.customerPhone ?? "");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [note, setNote] = useState(wash?.note ?? "");
+  const [washDate, setWashDate] = useState(() => businessDate());
   const [done, setDone] = useState<{ id: string } | null>(null);
   const plateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const customerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plateRequest = useRef(0);
-  const customerRequest = useRef(0);
 
   useEffect(() => {
     return () => {
       if (plateTimer.current) clearTimeout(plateTimer.current);
-      if (customerTimer.current) clearTimeout(customerTimer.current);
     };
   }, []);
 
@@ -117,6 +136,7 @@ export function WashForm({
   }, [serviceIds, services, vehicleTypeId]);
 
   const amount = finalAmount ?? theoretical;
+  const customerMatches = customerId ? [] : filterCustomerMatches(customers, customerSearch);
 
   function onPlateChange(value: string) {
     const next = value.toUpperCase();
@@ -143,33 +163,18 @@ export function WashForm({
   }
 
   function onCustomerQuery(value: string, field: "name" | "phone") {
-    if (field === "name") {
-      setCustomerName(value);
-      setCustomerId(null);
-    } else {
-      setCustomerPhone(value);
-      setCustomerId(null);
-    }
-    if (customerTimer.current) clearTimeout(customerTimer.current);
-    if (value.trim().length < 2) {
-      setCustomerMatches([]);
-      return;
-    }
-    const requestId = ++customerRequest.current;
-    customerTimer.current = setTimeout(() => {
-      void lookupCustomerAction(value).then((found) => {
-        if (requestId !== customerRequest.current) return;
-        setCustomerMatches(found);
-      });
-    }, 220);
+    if (field === "name") setCustomerName(value);
+    else setCustomerPhone(value);
+    setCustomerId(null);
+    setCustomerSearch(value);
   }
 
   function selectCustomer(match: CustomerMatch) {
     setCustomerId(match.id);
     setCustomerName(match.name ?? "");
     setCustomerPhone(match.phone ?? "");
-    setCustomerMatches([]);
-    const vehicle = match.vehicles[0];
+    setCustomerSearch("");
+    const vehicle = match.vehicles?.[0];
     if (vehicle?.plate && !plate) {
       setPlate(vehicle.plate);
       if (vehicle.vehicle_type_id) setVehicleTypeId(vehicle.vehicle_type_id);
@@ -184,7 +189,7 @@ export function WashForm({
     setDone(null);
     setPlate("");
     setMatches([]);
-    setCustomerMatches([]);
+    setCustomerSearch("");
     setServiceIds([]);
     setEmployeeIds([]);
     setFinalAmount(null);
@@ -193,6 +198,7 @@ export function WashForm({
     setCustomerName("");
     setCustomerPhone("");
     setNote("");
+    setWashDate(businessDate());
   }
 
   function submit() {
@@ -211,6 +217,10 @@ export function WashForm({
     }
     if (amount !== theoretical && !discountReason) {
       toast.error("Indiquez le motif de la différence de prix");
+      return;
+    }
+    if (!isEdit && washDate > businessDate()) {
+      toast.error("La date du lavage ne peut pas être dans le futur");
       return;
     }
 
@@ -232,7 +242,7 @@ export function WashForm({
         };
         const result = wash
           ? await updateWashAction({ ...payload, id: wash.id })
-          : await createWashAction(payload);
+          : await createWashAction({ ...payload, businessDate: washDate });
         if ("error" in result && result.error) {
           toast.error(result.error);
           return;
@@ -273,10 +283,42 @@ export function WashForm({
   }
 
   return (
-    <div className="min-w-0 space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Date et heure : {formatDateTime(wash ? new Date(wash.occurredAt) : new Date())} (Guinée)
-      </p>
+    <div className="relative min-w-0" aria-busy={pending}>
+      {pending ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+          <div className="flex flex-col items-center gap-3 rounded-xl bg-card px-8 py-6 ring-1 ring-foreground/10">
+            <span
+              className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent"
+              role="status"
+              aria-label="Enregistrement en cours"
+            />
+            <p className="text-sm font-medium">
+              {isEdit ? "Enregistrement…" : "Enregistrement du lavage…"}
+            </p>
+          </div>
+        </div>
+      ) : null}
+    <div className={cn("min-w-0 space-y-4", pending && "pointer-events-none")}>
+      {wash ? (
+        <p className="text-sm text-muted-foreground">
+          Date et heure : {formatDateTime(new Date(wash.occurredAt))} (Guinée)
+        </p>
+      ) : (
+        <FormSection title="Date du lavage">
+          <Label htmlFor="washDate" className="sr-only">
+            Date du lavage
+          </Label>
+          <Input
+            id="washDate"
+            type="date"
+            required
+            className="h-12"
+            value={washDate}
+            max={businessDate()}
+            onChange={(e) => setWashDate(e.target.value)}
+          />
+        </FormSection>
+      )}
 
       <FormSection title="Type de véhicule">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -481,7 +523,7 @@ export function WashForm({
                 <span className="truncate font-medium">{match.name ?? "Client"}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {match.phone ?? "Sans téléphone"}
-                  {match.vehicles[0]?.plate ? ` · ${match.vehicles[0].plate}` : ""}
+                  {match.vehicles?.[0]?.plate ? ` · ${match.vehicles[0].plate}` : ""}
                 </span>
               </button>
             ))}
@@ -497,8 +539,18 @@ export function WashForm({
       </FormSection>
 
       <Button className="h-12 w-full text-base" onClick={submit} disabled={pending}>
-        {pending ? "Enregistrement…" : isEdit ? `Enregistrer ${formatGNF(amount)}` : `Encaisser ${formatGNF(amount)}`}
+        {pending ? (
+          <span className="inline-flex items-center gap-2">
+            <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            Enregistrement…
+          </span>
+        ) : isEdit ? (
+          `Enregistrer ${formatGNF(amount)}`
+        ) : (
+          `Encaisser ${formatGNF(amount)}`
+        )}
       </Button>
+    </div>
     </div>
   );
 }
