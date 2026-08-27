@@ -10,7 +10,6 @@ export const loginSchema = z.object({
 export const washSchema = z
   .object({
     vehicleTypeId: z.string().uuid("Type de véhicule requis"),
-    plate: z.string().trim().min(1, "Plaque requise").max(20),
     serviceIds: z.array(z.string().uuid()).min(1, "Choisissez au moins une prestation"),
     employeeIds: z.array(z.string().uuid()).min(1, "Choisissez au moins un employé"),
     paymentMethod: z.enum(["cash", "mobile_money"]),

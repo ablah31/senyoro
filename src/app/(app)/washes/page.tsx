@@ -106,7 +106,7 @@ export default async function WashesPage({
       </PageHeader>
       <div className="mb-4 space-y-3">
         <PeriodSelector />
-        <QuerySearch placeholder="Plaque, client, téléphone" />
+        <QuerySearch placeholder="Client, téléphone" />
         <ListFilters
           vehicleTypes={vehicleTypes.map((item) => ({ id: item.id, name: item.name }))}
           services={services.map((item) => ({ id: item.id, name: item.name }))}
@@ -137,9 +137,12 @@ export default async function WashesPage({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{wash.plate ?? "Sans plaque"}</p>
+                    <p className="truncate font-semibold">
+                      {wash.customer_name || vehicle?.name || "Lavage"}
+                    </p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {formatDateTime(wash.occurred_at)} · {vehicle?.name}
+                      {formatDateTime(wash.occurred_at)}
+                      {wash.customer_name && vehicle?.name ? ` · ${vehicle.name}` : ""}
                     </p>
                     <p className="mt-1 truncate text-sm">{servicesForWash.map((s) => s.name).join(", ")}</p>
                     <p className="truncate text-xs text-muted-foreground">

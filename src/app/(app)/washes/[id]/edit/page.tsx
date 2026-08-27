@@ -38,7 +38,6 @@ export default async function EditWashPage({ params }: { params: Promise<{ id: s
         wash={{
           id: wash.id,
           vehicleTypeId: wash.vehicle_type_id ?? vehicleTypes[0]?.id ?? "",
-          plate: wash.plate ?? "",
           serviceIds,
           employeeIds,
           paymentMethod: wash.payment_method,

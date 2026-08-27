@@ -15,36 +15,53 @@ function assertCanManageWashes(role: AppRole) {
   if (role !== "admin" && role !== "responsable") throw new Error("Accès refusé");
 }
 
-function normalizePlate(plate: string) {
-  return plate.trim().toUpperCase().replace(/\s+/g, " ");
-}
-
 function normalizePhone(phone: string) {
   return phone.trim().replace(/\s+/g, "");
 }
 
-async function resolveCustomerAndVehicle(
+function namesEqual(a: string | null, b: string | null) {
+  if (!a || !b) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function isDifferentCustomer(
+  existing: { name: string | null; phone: string | null },
+  name: string | null,
+  phone: string | null,
+) {
+  if (phone && existing.phone && phone !== existing.phone) return true;
+  if (phone && existing.phone) return false;
+  return Boolean(name && existing.name && !namesEqual(name, existing.name));
+}
+
+async function fillCustomerIdentity(
+  supabase: AppSupabaseClient,
+  customerId: string,
+  existing: { name: string | null; phone: string | null },
+  name: string | null,
+  phone: string | null,
+) {
+  const patch: { name?: string | null; phone?: string | null } = {};
+  if (name && !existing.name) patch.name = name;
+  if (phone && !existing.phone) patch.phone = phone;
+  if (Object.keys(patch).length) {
+    await supabase.from("customers").update(patch).eq("id", customerId);
+  }
+}
+
+async function resolveCustomer(
   supabase: AppSupabaseClient,
   organizationId: string,
   input: {
-    plate: string;
-    vehicleTypeId: string;
     customerId?: string | null;
     customerName?: string | null;
     customerPhone?: string | null;
   },
 ) {
-  const plate = normalizePlate(input.plate);
-
-  const { data: existingVehicle } = await supabase
-    .from("vehicles")
-    .select("id, customer_id")
-    .eq("plate", plate)
-    .maybeSingle();
-
-  let customerId = input.customerId ?? existingVehicle?.customer_id ?? null;
   const name = input.customerName?.trim() || null;
   const phone = input.customerPhone ? normalizePhone(input.customerPhone) || null : null;
+
+  let customerId = input.customerId ?? null;
 
   if (customerId) {
     const { data: selected } = await supabase
@@ -52,86 +69,50 @@ async function resolveCustomerAndVehicle(
       .select("id, name, phone")
       .eq("id", customerId)
       .maybeSingle();
-    if (!selected) {
+    if (!selected || isDifferentCustomer(selected, name, phone)) {
       customerId = null;
     } else {
-      const patch: { name?: string | null; phone?: string | null } = {};
-      if (name && name !== selected.name) patch.name = name;
-      if (phone && phone !== selected.phone) patch.phone = phone;
-      if (Object.keys(patch).length) {
-        await supabase.from("customers").update(patch).eq("id", customerId);
-      }
+      await fillCustomerIdentity(supabase, customerId, selected, name, phone);
+    }
+  }
+
+  if (!customerId && phone) {
+    const { data: byPhone } = await supabase
+      .from("customers")
+      .select("id, name, phone")
+      .eq("phone", phone)
+      .limit(1)
+      .maybeSingle();
+    if (byPhone) {
+      customerId = byPhone.id;
+      await fillCustomerIdentity(supabase, customerId, byPhone, name, phone);
+    }
+  }
+
+  if (!customerId && name) {
+    const { data: byName } = await supabase
+      .from("customers")
+      .select("id, name, phone")
+      .ilike("name", name)
+      .limit(1)
+      .maybeSingle();
+    if (byName && !(phone && byName.phone && phone !== byName.phone)) {
+      customerId = byName.id;
+      await fillCustomerIdentity(supabase, customerId, byName, name, phone);
     }
   }
 
   if (!customerId && (name || phone)) {
-    if (phone) {
-      const { data: byPhone } = await supabase
-        .from("customers")
-        .select("id, name, phone")
-        .eq("phone", phone)
-        .maybeSingle();
-      if (byPhone) {
-        customerId = byPhone.id;
-        const patch: { name?: string | null; phone?: string | null } = {};
-        if (name && !byPhone.name) patch.name = name;
-        if (phone && !byPhone.phone) patch.phone = phone;
-        if (Object.keys(patch).length) {
-          await supabase.from("customers").update(patch).eq("id", customerId);
-        }
-      }
-    }
-    if (!customerId && name) {
-      const { data: byName } = await supabase
-        .from("customers")
-        .select("id, name, phone")
-        .ilike("name", name)
-        .limit(1)
-        .maybeSingle();
-      if (byName) {
-        customerId = byName.id;
-        if (phone && !byName.phone) {
-          await supabase.from("customers").update({ phone }).eq("id", customerId);
-        }
-      }
-    }
-    if (!customerId) {
-      const { data: created, error } = await supabase
-        .from("customers")
-        .insert({ organization_id: organizationId, name, phone })
-        .select("id")
-        .single();
-      if (error) throw error;
-      customerId = created.id;
-    }
-  }
-
-  let vehicleId = existingVehicle?.id ?? null;
-  if (vehicleId) {
-    const nextCustomerId = customerId ?? existingVehicle?.customer_id ?? null;
-    await supabase
-      .from("vehicles")
-      .update({
-        vehicle_type_id: input.vehicleTypeId,
-        customer_id: nextCustomerId,
-      })
-      .eq("id", vehicleId);
-  } else {
     const { data: created, error } = await supabase
-      .from("vehicles")
-      .insert({
-        organization_id: organizationId,
-        plate,
-        vehicle_type_id: input.vehicleTypeId,
-        customer_id: customerId,
-      })
+      .from("customers")
+      .insert({ organization_id: organizationId, name, phone })
       .select("id")
       .single();
     if (error) throw error;
-    vehicleId = created.id;
+    customerId = created.id;
   }
 
-  return { customerId, vehicleId, plate };
+  return customerId;
 }
 
 type WashInput = z.infer<typeof washSchema>;
@@ -205,10 +186,8 @@ export async function createWashAction(input: unknown) {
         ? new Date().toISOString()
         : toUtcFromBusinessDate(date, now.getHours(), now.getMinutes());
 
-    const [resolved, catalogLoaded] = await Promise.all([
-      resolveCustomerAndVehicle(supabase, orgId, {
-        plate: data.plate,
-        vehicleTypeId: data.vehicleTypeId,
+    const [customerId, catalogLoaded] = await Promise.all([
+      resolveCustomer(supabase, orgId, {
         customerId: data.customerId,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
@@ -219,8 +198,6 @@ export async function createWashAction(input: unknown) {
     if ("error" in catalogLoaded) return { error: catalogLoaded.error };
     const { catalog, priceByService } = catalogLoaded;
 
-    const { customerId, vehicleId, plate } = resolved;
-
     const { data: wash, error } = await supabase
       .from("washes")
       .insert({
@@ -228,9 +205,9 @@ export async function createWashAction(input: unknown) {
         occurred_at: occurredAt,
         business_date: date,
         vehicle_type_id: data.vehicleTypeId,
-        plate,
+        plate: null,
         customer_id: customerId,
-        vehicle_id: vehicleId,
+        vehicle_id: null,
         customer_name: data.customerName?.trim() || null,
         customer_phone: data.customerPhone ? normalizePhone(data.customerPhone) || null : null,
         payment_method: data.paymentMethod,
@@ -293,10 +270,8 @@ export async function updateWashAction(input: unknown) {
     if (!existing) return { error: "Lavage introuvable" };
     if (existing.status !== "active") return { error: "Un lavage annulé ne peut pas être modifié" };
 
-    const [resolved, catalogLoaded] = await Promise.all([
-      resolveCustomerAndVehicle(supabase, orgId, {
-        plate: data.plate,
-        vehicleTypeId: data.vehicleTypeId,
+    const [customerId, catalogLoaded] = await Promise.all([
+      resolveCustomer(supabase, orgId, {
         customerId: data.customerId,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
@@ -305,15 +280,12 @@ export async function updateWashAction(input: unknown) {
     ]);
     if ("error" in catalogLoaded) return { error: catalogLoaded.error };
     const { catalog, priceByService } = catalogLoaded;
-    const { customerId, vehicleId, plate } = resolved;
 
     const { error: updateError } = await supabase
       .from("washes")
       .update({
         vehicle_type_id: data.vehicleTypeId,
-        plate,
         customer_id: customerId,
-        vehicle_id: vehicleId,
         customer_name: data.customerName?.trim() || null,
         customer_phone: data.customerPhone ? normalizePhone(data.customerPhone) || null : null,
         payment_method: data.paymentMethod,
@@ -371,18 +343,6 @@ export async function cancelWashAction(id: string, reason: string) {
   } catch (error) {
     return { error: actionError(error) };
   }
-}
-
-export async function lookupPlateAction(plate: string) {
-  const { supabase } = await requireActionContext();
-  const normalized = normalizePlate(plate);
-  if (!normalized) return [];
-  const { data } = await supabase
-    .from("vehicles")
-    .select("id, plate, vehicle_type_id, customer_id, customers(name, phone)")
-    .ilike("plate", `${normalized}%`)
-    .limit(8);
-  return data ?? [];
 }
 
 export async function lookupCustomerAction(query: string) {

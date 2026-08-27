@@ -88,7 +88,8 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
           return (
             <div key={wash.id} className="flex justify-between rounded-lg bg-card p-3 text-sm ring-1 ring-foreground/10">
               <span>
-                {toIsoDate(new Date(wash.occurred_at))} · {wash.plate}
+                {toIsoDate(new Date(wash.occurred_at))}
+                {wash.plate ? ` · ${wash.plate}` : ""}
               </span>
               <span className="tabular-amount">{formatGNF(wash.final_amount)}</span>
             </div>

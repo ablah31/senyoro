@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createWashAction, lookupPlateAction, updateWashAction } from "@/lib/actions/washes";
+import { createWashAction, updateWashAction } from "@/lib/actions/washes";
 import { DISCOUNT_LABELS, PAYMENT_LABELS } from "@/lib/constants";
 import { formatGNF, toAmount } from "@/lib/format";
 import { priceForVehicle } from "@/lib/service-price";
@@ -23,12 +23,6 @@ type Service = {
   service_prices: { vehicle_type_id: string; price: number | string }[];
 };
 type Employee = { id: string; first_name: string; last_name: string; is_active: boolean };
-type PlateMatch = {
-  plate: string;
-  vehicle_type_id: string | null;
-  customer_id: string | null;
-  customers: { name: string | null; phone: string | null } | null;
-};
 export type CustomerMatch = {
   id: string;
   name: string | null;
@@ -58,7 +52,6 @@ function filterCustomerMatches(customers: CustomerMatch[], query: string) {
 export type WashFormValues = {
   id: string;
   vehicleTypeId: string;
-  plate: string;
   serviceIds: string[];
   employeeIds: string[];
   paymentMethod: "cash" | "mobile_money";
@@ -105,8 +98,6 @@ export function WashForm({
   const isEdit = Boolean(wash);
   const [pending, startTransition] = useTransition();
   const [vehicleTypeId, setVehicleTypeId] = useState(wash?.vehicleTypeId ?? vehicleTypes[0]?.id ?? "");
-  const [plate, setPlate] = useState(wash?.plate ?? "");
-  const [matches, setMatches] = useState<PlateMatch[]>([]);
   const [serviceIds, setServiceIds] = useState<string[]>(wash?.serviceIds ?? []);
   const [employeeIds, setEmployeeIds] = useState<string[]>(wash?.employeeIds ?? []);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money">(wash?.paymentMethod ?? "cash");
@@ -119,14 +110,6 @@ export function WashForm({
   const [note, setNote] = useState(wash?.note ?? "");
   const [washDate, setWashDate] = useState(() => businessDate());
   const [done, setDone] = useState<{ id: string } | null>(null);
-  const plateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const plateRequest = useRef(0);
-
-  useEffect(() => {
-    return () => {
-      if (plateTimer.current) clearTimeout(plateTimer.current);
-    };
-  }, []);
 
   const theoretical = useMemo(() => {
     return serviceIds.reduce((sum, id) => {
@@ -137,30 +120,6 @@ export function WashForm({
 
   const amount = finalAmount ?? theoretical;
   const customerMatches = customerId ? [] : filterCustomerMatches(customers, customerSearch);
-
-  function onPlateChange(value: string) {
-    const next = value.toUpperCase();
-    setPlate(next);
-    if (plateTimer.current) clearTimeout(plateTimer.current);
-    if (next.trim().length < 2) {
-      setMatches([]);
-      return;
-    }
-    const requestId = ++plateRequest.current;
-    plateTimer.current = setTimeout(() => {
-      void lookupPlateAction(next).then((found) => {
-        if (requestId !== plateRequest.current) return;
-        setMatches(
-          (found ?? []).map((row) => ({
-            plate: row.plate,
-            vehicle_type_id: row.vehicle_type_id,
-            customer_id: row.customer_id,
-            customers: Array.isArray(row.customers) ? row.customers[0] ?? null : row.customers,
-          })),
-        );
-      });
-    }, 220);
-  }
 
   function onCustomerQuery(value: string, field: "name" | "phone") {
     if (field === "name") setCustomerName(value);
@@ -174,11 +133,8 @@ export function WashForm({
     setCustomerName(match.name ?? "");
     setCustomerPhone(match.phone ?? "");
     setCustomerSearch("");
-    const vehicle = match.vehicles?.[0];
-    if (vehicle?.plate && !plate) {
-      setPlate(vehicle.plate);
-      if (vehicle.vehicle_type_id) setVehicleTypeId(vehicle.vehicle_type_id);
-    }
+    const vehicleType = match.vehicles?.[0]?.vehicle_type_id;
+    if (vehicleType) setVehicleTypeId(vehicleType);
   }
 
   function toggle(list: string[], id: string) {
@@ -187,8 +143,6 @@ export function WashForm({
 
   function resetForm() {
     setDone(null);
-    setPlate("");
-    setMatches([]);
     setCustomerSearch("");
     setServiceIds([]);
     setEmployeeIds([]);
@@ -203,10 +157,6 @@ export function WashForm({
 
   function submit() {
     if (pending) return;
-    if (!plate.trim()) {
-      toast.error("Plaque requise");
-      return;
-    }
     if (serviceIds.length === 0) {
       toast.error("Choisissez au moins une prestation");
       return;
@@ -228,7 +178,6 @@ export function WashForm({
       try {
         const payload = {
           vehicleTypeId,
-          plate,
           serviceIds,
           employeeIds,
           paymentMethod,
@@ -338,44 +287,6 @@ export function WashForm({
             </button>
           ))}
         </div>
-      </FormSection>
-
-      <FormSection title="Plaque">
-        <Label htmlFor="plate" className="sr-only">
-          Plaque
-        </Label>
-        <Input
-          id="plate"
-          value={plate}
-          onChange={(e) => onPlateChange(e.target.value)}
-          className="h-12 text-lg uppercase"
-          autoComplete="off"
-        />
-        {matches.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border bg-background">
-            {matches.map((match) => (
-              <button
-                key={match.plate}
-                type="button"
-                className="flex w-full min-w-0 flex-col items-start px-3 py-2 text-left hover:bg-muted"
-                onClick={() => {
-                  setPlate(match.plate);
-                  if (match.vehicle_type_id) setVehicleTypeId(match.vehicle_type_id);
-                  setCustomerName(match.customers?.name ?? "");
-                  setCustomerPhone(match.customers?.phone ?? "");
-                  setCustomerId(match.customer_id);
-                  setMatches([]);
-                }}
-              >
-                <span className="font-medium">{match.plate}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {match.customers?.name ?? "Véhicule connu"}
-                  {match.customers?.phone ? ` · ${match.customers.phone}` : ""}
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </FormSection>
 
       <FormSection title="Prestations">
@@ -523,7 +434,6 @@ export function WashForm({
                 <span className="truncate font-medium">{match.name ?? "Client"}</span>
                 <span className="truncate text-xs text-muted-foreground">
                   {match.phone ?? "Sans téléphone"}
-                  {match.vehicles?.[0]?.plate ? ` · ${match.vehicles[0].plate}` : ""}
                 </span>
               </button>
             ))}

@@ -30,7 +30,7 @@ export default async function WashDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <PageHeader title={wash.plate ?? "Lavage"} description={formatDateTime(wash.occurred_at)}>
+      <PageHeader title={wash.customer_name || vehicle?.name || "Lavage"} description={formatDateTime(wash.occurred_at)}>
         <Badge variant={wash.status === "active" ? "secondary" : "destructive"}>
           {wash.status === "active" ? "Actif" : "Annulé"}
         </Badge>

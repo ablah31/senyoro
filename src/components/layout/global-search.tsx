@@ -80,10 +80,10 @@ export function GlobalSearch({ washesOnly = false }: { washesOnly?: boolean }) {
     return acc;
   }, {});
 
-  const placeholder = washesOnly ? "Plaque, client, téléphone…" : "Plaque, client, téléphone, employé…";
+  const placeholder = washesOnly ? "Client, téléphone…" : "Client, téléphone, employé…";
   const description = washesOnly
-    ? "Plaques et transactions"
-    : "Plaques, clients, téléphones, employés et transactions";
+    ? "Clients et transactions"
+    : "Clients, téléphones, employés et transactions";
 
   return (
     <>

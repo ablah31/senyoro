@@ -49,20 +49,22 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <CardContent>{lastVisit ? formatDate(lastVisit) : "—"}</CardContent>
         </Card>
       </div>
-      <div>
-        <h2 className="mb-2 font-semibold">Véhicules</h2>
-        <div className="space-y-2">
-          {(vehicles ?? []).map((vehicle) => {
-            const type = vehicle.vehicle_types as { name: string } | null;
-            return (
-              <div key={vehicle.id} className="rounded-lg bg-card p-3 text-sm ring-1 ring-foreground/10">
-                {vehicle.plate} · {type?.name}
-                {vehicle.brand ? ` · ${vehicle.brand} ${vehicle.model ?? ""}` : ""}
-              </div>
-            );
-          })}
+      {(vehicles ?? []).length > 0 ? (
+        <div>
+          <h2 className="mb-2 font-semibold">Véhicules</h2>
+          <div className="space-y-2">
+            {(vehicles ?? []).map((vehicle) => {
+              const type = vehicle.vehicle_types as { name: string } | null;
+              return (
+                <div key={vehicle.id} className="rounded-lg bg-card p-3 text-sm ring-1 ring-foreground/10">
+                  {vehicle.plate} · {type?.name}
+                  {vehicle.brand ? ` · ${vehicle.brand} ${vehicle.model ?? ""}` : ""}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : null}
       <div>
         <h2 className="mb-2 font-semibold">Historique</h2>
         <div className="space-y-2">
@@ -73,7 +75,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               className="flex justify-between rounded-lg bg-card p-3 text-sm ring-1 ring-foreground/10"
             >
               <span>
-                {formatDateTime(wash.occurred_at)} · {wash.plate}
+                {formatDateTime(wash.occurred_at)}
+                {wash.plate ? ` · ${wash.plate}` : ""}
               </span>
               <span className="tabular-amount">{formatGNF(wash.final_amount)}</span>
             </Link>

@@ -15,7 +15,7 @@ export interface HelpTopic {
 
 const WASH_STEP: HelpStep = {
   title: "Un véhicule arrive",
-  detail: "Ouvrez Nouveau lavage : plaque, type de véhicule, prestations, employés, paiement.",
+  detail: "Ouvrez Nouveau lavage : type de véhicule, prestations, employés, paiement.",
   href: "/washes/new",
   action: "Nouveau lavage",
 };
@@ -69,7 +69,7 @@ export function getHelpTopics(): HelpTopic[] {
       question: "Comment enregistrer un lavage ?",
       points: [
         "Ouvrez Nouveau lavage.",
-        "Indiquez la plaque, le type de véhicule, les prestations, les employés et le paiement (Espèces ou Mobile Money).",
+        "Indiquez le type de véhicule, les prestations, les employés et le paiement (Espèces ou Mobile Money).",
         "Si vous saisissez le nom ou le téléphone, le client se crée tout seul.",
       ],
       href: "/washes/new",
@@ -100,10 +100,10 @@ export function getHelpTopics(): HelpTopic[] {
     },
     {
       id: "search",
-      question: "Comment retrouver une plaque ou un client ?",
+      question: "Comment retrouver un client ou un lavage ?",
       points: [
         "Utilisez la barre de recherche en haut de l'écran.",
-        "Tapez la plaque, le nom, le téléphone ou l'employé.",
+        "Tapez le nom, le téléphone ou l'employé.",
         "Sur ordinateur, Ctrl+K (ou Cmd+K) ouvre aussi la recherche.",
       ],
     },
