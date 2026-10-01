@@ -99,6 +99,18 @@ export function getHelpTopics(): HelpTopic[] {
       action: "Voir les lavages",
     },
     {
+      id: "whatsapp",
+      question: "Comment envoyer un message WhatsApp à tous les clients ?",
+      points: [
+        "Ouvrez Clients, puis Message WhatsApp.",
+        "Écrivez le message une fois. {nom} est remplacé par le nom du client.",
+        "Touchez Envoyer : WhatsApp s'ouvre avec le message prêt. Envoyez-le, puis revenez pour le client suivant.",
+        "Les clients déjà contactés restent cochés, même si vous fermez la page.",
+      ],
+      href: "/customers/whatsapp",
+      action: "Message WhatsApp",
+    },
+    {
       id: "search",
       question: "Comment retrouver un client ou un lavage ?",
       points: [

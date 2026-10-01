@@ -129,6 +129,28 @@ export async function getCustomersForLookup() {
   return data ?? [];
 }
 
+const CUSTOMER_PAGE_SIZE = 1000;
+
+export async function getCustomersWithPhone() {
+  const supabase = await requireClient();
+  const customers: { id: string; name: string | null; phone: string | null }[] = [];
+  let total = Infinity;
+  while (customers.length < total) {
+    const { data, error, count } = await supabase
+      .from("customers")
+      .select("id, name, phone", { count: "exact" })
+      .not("phone", "is", null)
+      .order("name")
+      .order("id")
+      .range(customers.length, customers.length + CUSTOMER_PAGE_SIZE - 1);
+    if (error) throw error;
+    if (data.length === 0) break;
+    customers.push(...data);
+    total = count ?? customers.length;
+  }
+  return customers;
+}
+
 export async function getEmployees(activeOnly = false) {
   const supabase = await requireClient();
   let query = supabase

@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { requireClient } from "@/lib/auth";
 import { formatDate } from "@/lib/dates";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const metadata = { title: "Clients" };
@@ -52,7 +54,12 @@ export default async function CustomersPage({
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Clients" description="Fiches créées automatiquement depuis un lavage." />
+      <PageHeader title="Clients" description="Fiches créées automatiquement depuis un lavage.">
+        <Button className="h-11 px-4" nativeButton={false} render={<Link href="/customers/whatsapp" />}>
+          <MessageCircle aria-hidden />
+          Message WhatsApp
+        </Button>
+      </PageHeader>
       <form>
         <Input name="q" defaultValue={q} placeholder="Nom ou téléphone" className="h-11" />
       </form>
